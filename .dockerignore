@@ -1,0 +1,13 @@
+# Build context pruning: never ship source-control data, agent notes or host
+# build artifacts into the image layers.
+.git
+.agent
+.github
+builds
+backend/builds
+**/node_modules
+frontend/.svelte-kit
+frontend/build
+**/.DS_Store
+Readme.md
+Spec.md

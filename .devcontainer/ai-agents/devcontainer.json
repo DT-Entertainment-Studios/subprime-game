@@ -1,0 +1,43 @@
+{
+    "name": "AI Agents",
+    "image": "docker.io/madebytimo/ai-agents",
+    "remoteUser": "user",
+    "runArgs": ["--tmpfs", "/tmp:exec"],
+    "forwardPorts": [8000, 8001, 8002, 8003, 11003],
+    "remoteEnv": {
+        "AI_API_URL": "${localEnv:AI_API_URL}",
+        "AI_API_KEY": "${localEnv:AI_API_KEY}",
+        "AI_MODEL": "${localEnv:AI_MODEL}",
+        "AI_CHEAP_MODEL": "${localEnv:AI_CHEAP_MODEL}",
+        "AI_VISION_MODEL": "${localEnv:AI_VISION_MODEL}",
+        "AI_NAME": "AI-Agent",
+        "USER_PASSWORD": "${localEnv:USER}",
+        "PATH": "${containerEnv:PATH}:/media/user/.local/bin",
+        "PIP_BREAK_SYSTEM_PACKAGES": "true"
+    },
+    "mounts": [{ "type": "volume", "target": "/media/user", "source": "dev-subprime-game-home" }],
+    "postCreateCommand": {
+        "apt": "sudo apt update -qq && sudo apt install -y -qq caddy"
+    },
+    "postStartCommand": {
+        "go": "cd backend && go mod download",
+        "npm": "cd frontend && npm install",
+        "opencode": "run-opencode.sh"
+    },
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "esbenp.prettier-vscode",
+                "foxundermoon.shell-format",
+                "golang.go",
+                "mads-hartmann.bash-ide-vscode",
+                "mhutchie.git-graph",
+                "redhat.vscode-yaml",
+                "streetsidesoftware.code-spell-checker",
+                "streetsidesoftware.code-spell-checker-german",
+                "svelte.svelte-vscode",
+                "timonwong.shellcheck"
+            ]
+        }
+    }
+}

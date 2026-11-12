@@ -1,4 +1,7 @@
 # folders
+# backend hot reload (make dev): air's dev binary and its install directory
+backend/tmp/
+backend/.tools/
 __pycache__/
 .agent/
 .bsp/

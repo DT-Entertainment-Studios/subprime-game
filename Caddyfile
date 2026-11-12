@@ -1,0 +1,34 @@
+{
+	admin off
+}
+
+(dev) {
+	@api path /api /api/*
+	handle @api {
+		reverse_proxy {$SUBPRIME_BACKEND_URL:127.0.0.1:8080} {
+			header_up X-Forwarded-User {args[0]}
+			header_up X-Forwarded-Preferred-Username {args[1]}
+			header_up X-Forwarded-Email {args[0]}@example.com
+			header_up X-Forwarded-Groups dev
+		}
+	}
+	handle {
+		reverse_proxy {$SUBPRIME_FRONTEND_URL:subprime:8081}
+	}
+}
+
+:8000 {
+	import dev arteon Arteon
+}
+
+:8001 {
+	import dev beetle Beetle
+}
+
+:8002 {
+	import dev challenger Challenger
+}
+
+:8003 {
+	import dev ducato Ducato
+}

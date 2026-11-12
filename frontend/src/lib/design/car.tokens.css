@@ -1,0 +1,18 @@
+/* Car illustration palette — not theme roles, so it deliberately lives
+   outside tokens.css and does not flip with data-theme. Exempt from
+   check-design.sh by the *.tokens.* basename rule. */
+:root {
+	--car-body-fallback: #888888; /* body colour when a player has none */
+	--car-shadow: rgba(0, 0, 0, 0.3);
+	--car-tyre: #14171b;
+	--car-body-stroke: #f6f9fc;
+	--car-windscreen: #e9f7ff;
+	--car-rear-window: #bfdcee;
+	--car-cabin: rgba(0, 0, 0, 0.22);
+	--car-initial: #ffffff;
+	--car-initial-stroke: rgba(0, 0, 0, 0.55);
+	--car-lamp-on: #fff9db; /* lit headlight glass */
+	--car-lamp-off: #3b4147; /* dark glass: 10.3:1 on white, 1.3:1 on asphalt */
+	--car-taillight: #ff5252;
+	--car-beam: #ffe9a8;
+}

@@ -1,0 +1,175 @@
+@import './lib/design/tokens.css';
+/* Car illustration palette: theme-independent, not part of the design roles. */
+@import './lib/design/car.tokens.css';
+
+/* ==========================================================================
+   Global primitives. All colour, shape, elevation and type values come from
+   the vendored corporate-design tokens (lib/design/tokens.css).
+   ========================================================================== */
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; min-height: 100%; }
+
+body {
+	background: var(--md-sys-color-surface);        /* rule 1: white page in light mode */
+	color: var(--md-sys-color-on-surface);
+	font-family: var(--cd-font-family);
+	font-size: 14px;                                /* body-medium, tokens.css:172 */
+	line-height: 20px;
+}
+
+h1 { margin: 0 0 .5rem; font-weight: 400; font-size: 28px; line-height: 36px; } /* headline-medium :166 */
+h2 { margin: 0 0 .5rem; font-weight: 400; font-size: 22px; line-height: 28px; } /* title-large :168 */
+h3 { margin: 0 0 .5rem; font-weight: 500; font-size: 16px; line-height: 24px; } /* title-medium :169 */
+
+a { color: var(--cd-link); }                       /* rule 5: never RAL 2004 */
+a:hover { color: var(--cd-link-hover); }
+button { font-family: inherit; }
+
+:where(a, button, input, select, textarea, summary, [role='button']):focus-visible {
+	outline: var(--cd-focus-ring-width) solid var(--cd-focus-ring-color);
+	outline-offset: var(--cd-focus-ring-offset);
+}
+
+/* ---- buttons ------------------------------------------------------------ */
+
+button.plain {                                     /* neutral / outlined */
+	background: var(--md-sys-color-surface);
+	color: var(--md-sys-color-on-surface);
+	border: 1px solid var(--md-sys-color-outline);
+	border-radius: var(--md-sys-shape-corner-full);
+	padding: .4rem .9rem;                          /* unchanged hit area */
+	cursor: pointer;
+	font-size: 14px; line-height: 20px; font-weight: 500;   /* label-large :174 */
+}
+button.plain:hover:not(:disabled) { background: var(--md-sys-color-surface-container-high); }
+button.plain:disabled { opacity: .5; cursor: not-allowed; }
+
+button.primary {                                   /* black filled — NOT the CTA (rule 4) */
+	background: var(--md-sys-color-primary);
+	color: var(--md-sys-color-on-primary);
+	border: 1px solid transparent;
+	border-radius: var(--md-sys-shape-corner-full);
+	padding: .45rem 1.1rem;
+	cursor: pointer;
+	font-size: 14px; line-height: 20px; font-weight: 500;
+}
+button.primary:hover:not(:disabled) {
+	background: color-mix(in srgb, var(--md-sys-color-on-primary) 8%, var(--md-sys-color-primary));
+}
+button.primary:disabled { opacity: .5; cursor: not-allowed; }
+
+/* the single orange CTA of a view — see plan §5 */
+button.cta, a.cta {
+	background: var(--md-sys-color-tertiary);
+	color: var(--md-sys-color-on-tertiary);        /* black text, never white (rule 3) */
+	border: 1px solid transparent;
+	border-radius: var(--md-sys-shape-corner-full);
+	padding: .45rem 1.1rem;
+	cursor: pointer;
+	font-family: var(--cd-font-family);
+	font-size: 14px; line-height: 20px; font-weight: 600;
+	text-decoration: none;
+	display: inline-flex; align-items: center; justify-content: center;
+}
+button.cta:hover:not(:disabled), a.cta:hover {
+	background: color-mix(in srgb, var(--md-sys-color-on-tertiary) 8%, var(--md-sys-color-tertiary));
+	color: var(--md-sys-color-on-tertiary);
+}
+button.cta:disabled { opacity: .5; cursor: not-allowed; }
+/* A modal overlay owns the one orange CTA: while any aria-modal surface is open
+   (card popup, tile card, bank-sale dialog), the board's phase CTA behind the
+   scrim renders as a neutral filled button. Rule 4, AC3. */
+body:has([aria-modal='true']) .board-area .cta {
+	background: var(--md-sys-color-primary);
+	color: var(--md-sys-color-on-primary);
+}
+
+/* ---- form controls ------------------------------------------------------ */
+
+input[type='text'],
+input[type='number'],
+select {
+	background: var(--md-sys-color-surface);
+	color: var(--md-sys-color-on-surface);
+	border: 1px solid var(--md-sys-color-outline);
+	border-radius: var(--md-sys-shape-corner-small);
+	padding: .45rem .6rem;
+	font-family: inherit;
+	font-size: 16px; line-height: 24px;            /* body-large :171 */
+	width: 100%;
+}
+
+label {
+	display: block;
+	font-size: 12px; line-height: 16px;            /* label-medium :175 */
+	color: var(--md-sys-color-on-surface-variant);
+	margin-bottom: .2rem;
+}
+
+/* ---- surfaces ----------------------------------------------------------- */
+
+.card {
+	background: var(--md-sys-color-surface-container);          /* chrome, not page bg */
+	border: 1px solid var(--md-sys-color-outline-variant);
+	border-radius: var(--md-sys-shape-corner-medium);
+	padding: 1rem;
+}
+.card + .card { margin-top: 1rem; }
+
+.error-banner {                                   /* class name is a test contract (survey §6) */
+	background: var(--md-sys-color-error-container);
+	border: 1px solid var(--md-sys-color-error);
+	color: var(--md-sys-color-on-error-container);
+	border-radius: var(--md-sys-shape-corner-small);
+	padding: .5rem .75rem;
+	display: flex; justify-content: space-between; gap: .75rem; align-items: center;
+}
+
+.badge {
+	display: inline-flex; align-items: center; gap: .3rem;
+	border-radius: var(--md-sys-shape-corner-full);
+	padding: .1rem .55rem;
+	font-size: 11px; line-height: 16px; font-weight: 500;      /* label-small :176 */
+	background: var(--md-sys-color-secondary-container);      /* NOT surface-variant (collides) */
+	color: var(--md-sys-color-on-secondary-container);
+}
+
+/* ---- layout utilities --------------------------------------------------- */
+
+.app-shell {
+	min-height: 100vh;
+	display: flex;
+	flex-direction: column;
+}
+
+.row {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	flex-wrap: wrap;
+}
+
+.stack {
+	display: flex;
+	flex-direction: column;
+	gap: 0.75rem;
+}
+
+.muted {
+	color: var(--md-sys-color-on-surface-variant);
+}
+
+.animate-off *,
+.animate-off *::before,
+.animate-off *::after {
+	transition: none !important;
+	animation: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	* {
+		transition: none !important;
+		animation: none !important;
+	}
+}
