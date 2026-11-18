@@ -4,10 +4,14 @@ services:
         container_name: subprime-backend
         image: cosmtrek/air
         command: --build.cmd "go build -o /tmp/subprime ./cmd/subprime" --build.entrypoint "/tmp/subprime"
+        read_only: true
         environment:
             - air_wd=/workspaces/subprime-game/backend
+            - GOCACHE=/media/cache/go/cache
+            - GOPATH=/media/cache/go/path
         volumes:
             - "./backend:/workspaces/subprime-game/backend"
+            - subprime-backend-cache:/media/cache
         tmpfs:
             - /tmp:exec
 
@@ -16,6 +20,7 @@ services:
         image: docker.io/madebytimo/nodejs
         working_dir: /workspaces/subprime-game/frontend
         command: sh -c 'test -d node_modules || npm install --no-audit --no-fund; npm run dev'
+        read_only: true
         environment:
             - VITE_API_PROXY=http://caddy:8000
         volumes:
@@ -25,6 +30,7 @@ services:
     reverse-proxy:
         container_name: subprime-reverse-proxy
         image: caddy:2
+        read_only: true
         ports:
             - "127.0.0.1:8000:8000"
             - "127.0.0.1:8001:8001"
@@ -35,3 +41,6 @@ services:
             - SUBPRIME_FRONTEND_URL=frontend:8081
         volumes:
             - "./Caddyfile:/etc/caddy/Caddyfile:ro"
+
+volumes:
+    subprime-backend-cache:
