@@ -7,7 +7,8 @@
 		buyAlways: true,
 		jail: 'none',
 		buildGroups: [],
-		liquidity: 0
+		liquidity: 0,
+		hideCards: false
 	};
 
 	const MAX_LIQUIDITY = 100000;
@@ -137,6 +138,21 @@
 		/>
 		<span>Immer kaufen</span>
 	</label>
+
+	<label class="check" for="autopilot-hide-cards">
+		<input
+			id="autopilot-hide-cards"
+			type="checkbox"
+			checked={config.hideCards}
+			disabled={me.bankrupt}
+			aria-describedby="autopilot-hide-cards-hint"
+			onchange={(event) => update({ hideCards: event.currentTarget.checked })}
+		/>
+		<span>Keine Karten anzeigen</span>
+	</label>
+	<p id="autopilot-hide-cards-hint" class="muted hint">
+		Nur Ereignis- und Gemeinschaftskarten, und nur solange der Autopilot aktiv ist.
+	</p>
 
 	<fieldset>
 		<legend>Werkstatt</legend>

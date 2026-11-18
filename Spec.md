@@ -595,9 +595,11 @@ The following are fixed for v1.0 and shown in the lobby:
   closed.
 - **Settings**: stored per seat and per game, not persisted. `enabled` (default off),
   `buyAlways` (default on), `jail` (`none`/`pay`/`roll`, default `none`), `buildGroups`
-  (default empty) and `liquidity` (default 0, 0–100000 GE). Only the owner sees the full
-  settings; every other player and every spectator sees only whether the autopilot is
-  active.
+  (default empty), `liquidity` (default 0, 0–100000 GE) and `hideCards` (default off).
+  Only the owner sees the full settings; every other player and every spectator sees only
+  whether the autopilot is active. `hideCards` suppresses event- and community-card notices
+  only while the autopilot is active; it does not affect trade pop-ups, the autopilot toast
+  or the event log.
 - **Pacing**: at most one action every 0.8 s, driven server-side by the room tick through
   `Game.Tick(now)`. A new turn continues after the same interval.
 - **Rolling**: in `awaiting_roll` it rolls, including the follow-up roll after a double.
@@ -720,8 +722,8 @@ does dice rolls and money arithmetic, and broadcasts state changes.
   at least one effective vote — the target, the count of valid votes and whether the
   requesting viewer already voted.
 - `set_autopilot` carries the complete `autopilot` object (`enabled`, `buyAlways`,
-  `jail`, `buildGroups`, `liquidity`); it is idempotent, allowed out of turn and in every
-  turn phase for a seated player, and rejected for spectators. Every `PlayerView` carries
+  `jail`, `buildGroups`, `liquidity`, `hideCards`); it is idempotent, allowed out of turn and
+  in every turn phase for a seated player, and rejected for spectators. Every `PlayerView` carries
   `autopilot: {"active": bool, "config": {…}}`; `config` is only present in that seat's
   own snapshot — other players and spectators receive only `active`. Stops add a `reason`
   field to the `autopilot_off` event.

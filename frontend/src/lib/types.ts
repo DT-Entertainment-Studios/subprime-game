@@ -51,6 +51,7 @@ export interface AutopilotSettings {
 	jail: AutopilotJail;
 	buildGroups: string[];
 	liquidity: number;
+	hideCards: boolean;
 }
 
 export interface AutopilotView {

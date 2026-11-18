@@ -80,6 +80,7 @@ function config(overrides: Partial<AutopilotSettings> = {}): AutopilotSettings {
 		jail: 'none',
 		buildGroups: [],
 		liquidity: 0,
+		hideCards: false,
 		...overrides
 	};
 }
@@ -144,6 +145,12 @@ describe('AutopilotPanel controls', () => {
 		expect(within(powerRow()).getByText('Aus')).toBeInTheDocument();
 		expect(within(powerRow()).getByText('Aus')).toHaveAttribute('aria-hidden', 'true');
 		expect(screen.getByLabelText('Immer kaufen')).toBeInTheDocument();
+		expect(screen.getByLabelText('Keine Karten anzeigen')).toBeInTheDocument();
+		expect(
+			screen.getByText(
+				'Nur Ereignis- und Gemeinschaftskarten, und nur solange der Autopilot aktiv ist.'
+			)
+		).toBeInTheDocument();
 		expect(screen.getByRole('radio', { name: 'Aus' })).toBeInTheDocument();
 		expect(screen.getByRole('radio', { name: 'Freikaufen' })).toBeInTheDocument();
 		expect(screen.getByRole('radio', { name: 'Pasch versuchen' })).toBeInTheDocument();
@@ -242,6 +249,7 @@ describe('AutopilotPanel intents', () => {
 		expect(onIntent).toHaveBeenCalledWith({
 			type: 'set_autopilot',
 			autopilot: {
+				hideCards: false,
 				enabled: true,
 				buyAlways: true,
 				jail: 'none',
@@ -260,11 +268,31 @@ describe('AutopilotPanel intents', () => {
 		expect(onIntent).toHaveBeenCalledWith({
 			type: 'set_autopilot',
 			autopilot: {
+				hideCards: false,
 				enabled: true,
 				buyAlways: false,
 				jail: 'none',
 				buildGroups: [],
 				liquidity: 0
+			}
+		});
+	});
+
+	it('sends hideCards in the full config when the checkbox changes', async () => {
+		const onIntent = vi.fn();
+		render(AutopilotPanel, { game: game(), me: me({}, { enabled: true }), onIntent });
+
+		await fireEvent.click(screen.getByLabelText('Keine Karten anzeigen'));
+
+		expect(onIntent).toHaveBeenCalledWith({
+			type: 'set_autopilot',
+			autopilot: {
+				enabled: true,
+				buyAlways: true,
+				jail: 'none',
+				buildGroups: [],
+				liquidity: 0,
+				hideCards: true
 			}
 		});
 	});
@@ -281,6 +309,7 @@ describe('AutopilotPanel intents', () => {
 		expect(onIntent).toHaveBeenCalledWith({
 			type: 'set_autopilot',
 			autopilot: {
+				hideCards: false,
 				enabled: true,
 				buyAlways: true,
 				jail,
@@ -299,6 +328,7 @@ describe('AutopilotPanel intents', () => {
 		expect(onIntent).toHaveBeenCalledWith({
 			type: 'set_autopilot',
 			autopilot: {
+				hideCards: false,
 				enabled: true,
 				buyAlways: true,
 				jail: 'none',
@@ -321,6 +351,7 @@ describe('AutopilotPanel intents', () => {
 		expect(onIntent).toHaveBeenCalledWith({
 			type: 'set_autopilot',
 			autopilot: {
+				hideCards: false,
 				enabled: false,
 				buyAlways: true,
 				jail: 'none',
@@ -347,6 +378,7 @@ describe('AutopilotPanel intents', () => {
 		expect(onIntent).toHaveBeenCalledWith({
 			type: 'set_autopilot',
 			autopilot: {
+				hideCards: false,
 				enabled: true,
 				buyAlways: true,
 				jail: 'none',
@@ -404,6 +436,7 @@ describe('AutopilotPanel configured groups', () => {
 		expect(onIntent).toHaveBeenCalledWith({
 			type: 'set_autopilot',
 			autopilot: {
+				hideCards: false,
 				enabled: false,
 				buyAlways: true,
 				jail: 'none',
@@ -456,6 +489,7 @@ describe('AutopilotPanel bankrupt seat', () => {
 		expect(screen.getByLabelText('Autopilot aktiv')).toBeDisabled();
 		expect(screen.getByRole('switch', { name: 'Autopilot aktiv' })).toBeDisabled();
 		expect(screen.getByLabelText('Immer kaufen')).toBeDisabled();
+		expect(screen.getByLabelText('Keine Karten anzeigen')).toBeDisabled();
 		expect(screen.getByRole('radio', { name: 'Aus' })).toBeDisabled();
 		expect(screen.getByRole('radio', { name: 'Freikaufen' })).toBeDisabled();
 		expect(screen.getByRole('radio', { name: 'Pasch versuchen' })).toBeDisabled();

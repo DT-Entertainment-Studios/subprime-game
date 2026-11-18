@@ -57,6 +57,9 @@ func TestAutopilotDefaults(t *testing.T) {
 		if p.Autopilot.Liquidity != 0 {
 			t.Errorf("player %d: Liquidity = %d, want 0", i, p.Autopilot.Liquidity)
 		}
+		if p.Autopilot.HideCards {
+			t.Errorf("player %d: HideCards = true, want false", i)
+		}
 		if !p.autopilotNextAt.IsZero() {
 			t.Errorf("player %d: autopilotNextAt = %v, want zero", i, p.autopilotNextAt)
 		}
@@ -977,6 +980,7 @@ func TestAutopilotStateVisibility(t *testing.T) {
 		Jail:        AutopilotJailPay,
 		BuildGroups: []string{"hellblau", "braun"},
 		Liquidity:   200,
+		HideCards:   true,
 	}); err != nil {
 		t.Fatalf("SetAutopilot() error = %v", err)
 	}
@@ -993,6 +997,9 @@ func TestAutopilotStateVisibility(t *testing.T) {
 	}
 	if !slices.Equal(owner.Players[0].Autopilot.Config.BuildGroups, []string{"braun", "hellblau"}) {
 		t.Errorf("config groups = %v, want sorted [braun hellblau]", owner.Players[0].Autopilot.Config.BuildGroups)
+	}
+	if !owner.Players[0].Autopilot.Config.HideCards {
+		t.Error("owner config hideCards = false, want true")
 	}
 
 	other := g.StateFor(1)

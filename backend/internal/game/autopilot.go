@@ -37,6 +37,7 @@ type AutopilotSettings struct {
 	Jail        string   `json:"jail"`
 	BuildGroups []string `json:"buildGroups"` // always non-nil after validation
 	Liquidity   int      `json:"liquidity"`
+	HideCards   bool     `json:"hideCards"`
 }
 
 // AutopilotView is the per-seat view. Config is set only for the owner.
