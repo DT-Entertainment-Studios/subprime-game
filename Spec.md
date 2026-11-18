@@ -350,10 +350,6 @@ the client shows. There are no silent fallbacks.
   another player. The Frei-Parken field therefore grants nothing. A car that lands
   there only pulls into one of the field's marked parking bays (purely visual
   detail).
-- **Tax fields**: *Einkommensteuer* (field 4) charges **10 % of the player's cash at
-  the moment of landing**, rounded down to whole GE. *Zusatzsteuer* (field 38) keeps
-  its fixed 100 GE. The percentage is computed from cash only (not net worth) and
-  before any liquidation that the payment might trigger.
 - Rent goes to the property owner (minus the utility share, 4.5).
 
 ### 4.4 Buying property and auctions
