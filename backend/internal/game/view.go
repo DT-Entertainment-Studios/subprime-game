@@ -76,8 +76,8 @@ func (g *Game) StateFor(viewer int) State {
 	trades := make([]TradeOffer, len(g.Trades))
 	for i, t := range g.Trades {
 		trades[i] = *t
-		trades[i].OfferTiles = append([]int(nil), t.OfferTiles...)
-		trades[i].RequestTiles = append([]int(nil), t.RequestTiles...)
+		trades[i].OfferTiles = append([]int{}, t.OfferTiles...)
+		trades[i].RequestTiles = append([]int{}, t.RequestTiles...)
 	}
 	events := make([]Event, len(g.Events))
 	copy(events, g.Events)

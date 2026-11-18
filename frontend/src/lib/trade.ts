@@ -23,12 +23,12 @@ export interface TradeItem {
 /** Builds the display items of one trade side, tiles in board order. */
 export function tradeSideItems(
 	game: GameState,
-	tiles: number[],
+	tiles: number[] | null | undefined,
 	cards: number,
 	cash: number
 ): TradeItem[] {
 	const items: TradeItem[] = [];
-	for (const index of [...tiles].sort((a, b) => a - b)) {
+	for (const index of [...(tiles ?? [])].sort((a, b) => a - b)) {
 		const tile = game.board[index];
 		if (!tile) continue;
 		items.push({
