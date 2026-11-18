@@ -551,6 +551,9 @@ the client shows. There are no silent fallbacks.
   changes a seat.
 - The event log records every game event in order, with amounts and the acting player;
   it is the authoritative history of the game and is shown in a scrollable panel.
+  Newest events are listed at the top. A reader who is scrolled to the top keeps
+  following new events automatically; a reader who scrolled further down keeps their
+  viewport in place when new events arrive.
 - There is **no chat** — not in v1.0 and not later. The players talk over a voice call;
   the event log is the record.
 
