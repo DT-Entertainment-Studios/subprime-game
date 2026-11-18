@@ -83,7 +83,12 @@
 			case 'chest':
 				return { icon: IconGift, label: 'Gemeinschaft', sub: '', accent: '#3f51b5' };
 			case 'tax':
-				return { icon: IconReceipt, label: 'Steuer', sub: `${tile.tax ?? 0} GE`, accent: '#546e7a' };
+				return {
+					icon: IconReceipt,
+					label: 'Steuer',
+					sub: tile.taxPercent ? `${tile.taxPercent} %` : `${tile.tax ?? 0} GE`,
+					accent: '#546e7a'
+				};
 			default:
 				return null;
 		}

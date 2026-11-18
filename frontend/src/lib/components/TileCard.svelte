@@ -303,7 +303,9 @@
 
 		{#if tile.type === 'tax'}
 			<h3>Steuer</h3>
-			<p class="hint">Landet hier jemand, zahlt {formatMoney(tile.tax)} direkt an die Bank — Frei-Parken füllt keinen Topf.</p>
+			<p class="hint">Landet hier jemand, zahlt {tile.taxPercent
+					? `${tile.taxPercent} % des Bargelds`
+					: formatMoney(tile.tax)} direkt an die Bank — Frei-Parken füllt keinen Topf.</p>
 		{:else if tile.type === 'chance'}
 			<h3>Ereignisfeld</h3>
 			<p class="hint">Es wird eine Ereigniskarte gezogen und sofort ausgeführt. Kartenzahlungen gehen an die Bank — nur die Geburtstags- und Vorstandskarten richten sich an die anderen Spieler.</p>

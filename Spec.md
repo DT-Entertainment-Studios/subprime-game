@@ -63,7 +63,7 @@ listed):
 | 1 | Zollgasse | street | braun | 60 | 2, 10, 30, 90, 160, 250 | 50 | 42 |
 | 2 | Gemeinschaftsfeld | chest | — | — | — | — | — |
 | 3 | Münzgasse | street | braun | 60 | 4, 20, 60, 180, 320, 450 | 50 | 42 |
-| 4 | Einkommensteuer | tax | — | — | 200 | — | — |
+| 4 | Einkommensteuer | tax | — | — | 10 % of cash | — | — |
 | 5 | Tankstelle Süd | tankstelle | tankstelle | 200 | 25, 50, 100, 200 | — | 140 |
 | 6 | Marktstraße | street | hellblau | 100 | 6, 30, 90, 270, 400, 550 | 50 | 70 |
 | 7 | Ereignisfeld | chance | — | — | — | — | — |
@@ -350,6 +350,10 @@ the client shows. There are no silent fallbacks.
   another player. The Frei-Parken field therefore grants nothing. A car that lands
   there only pulls into one of the field's marked parking bays (purely visual
   detail).
+- **Tax fields**: *Einkommensteuer* (field 4) charges **10 % of the player's cash at
+  the moment of landing**, rounded down to whole GE. *Zusatzsteuer* (field 38) keeps
+  its fixed 100 GE. The percentage is computed from cash only (not net worth) and
+  before any liquidation that the payment might trigger.
 - Rent goes to the property owner (minus the utility share, 4.5).
 
 ### 4.4 Buying property and auctions
@@ -884,7 +888,10 @@ Why each open point was resolved the way it was.
   charges twice its base rent (classic rule, "Miete bei ganzer Farbgruppe"). It was
   missing from the first draft.
 - **Tax field names**: corrected to the names on the official German board —
-  *Einkommensteuer* (200 GE) and *Zusatzsteuer* (100 GE).
+  *Einkommensteuer* and *Zusatzsteuer* (100 GE).
+- **Einkommensteuer is a percentage tax**: field 4 takes 10 % of the player's cash
+  instead of the classic flat 200 GE. Board data now carries either a fixed `tax`
+  amount or a `taxPercent`, never both.
 - **Board data verified**: all 40 fields (order, color groups, prices, rent ladders, build
   costs, mortgage values) were checked against the official German rulebook and the
   German board artwork and match the table in section 3.1 exactly.

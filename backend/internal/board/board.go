@@ -52,17 +52,20 @@ var GroupSizes = map[Group]int{
 }
 
 // Tile is one field of the 40-field board. Rents holds [base, 1..4 houses,
-// hotel]; the sell price is 70 % of the purchase price (rounded down).
+// hotel]; the sell price is 70 % of the purchase price (rounded down). A tax
+// tile charges either a fixed Tax amount or TaxPercent of the player's cash on
+// landing — never both.
 type Tile struct {
-	Index int      `json:"index"`
-	Name  string   `json:"name"`
-	Type  TileType `json:"type"`
-	Group Group    `json:"group,omitempty"`
-	Price int      `json:"price,omitempty"`
-	Rents []int    `json:"rents,omitempty"`
-	Build int      `json:"build,omitempty"`
-	Sell  int      `json:"sell,omitempty"`
-	Tax   int      `json:"tax,omitempty"`
+	Index      int      `json:"index"`
+	Name       string   `json:"name"`
+	Type       TileType `json:"type"`
+	Group      Group    `json:"group,omitempty"`
+	Price      int      `json:"price,omitempty"`
+	Rents      []int    `json:"rents,omitempty"`
+	Build      int      `json:"build,omitempty"`
+	Sell       int      `json:"sell,omitempty"`
+	Tax        int      `json:"tax,omitempty"`
+	TaxPercent int      `json:"taxPercent,omitempty"`
 }
 
 // Buyable reports whether a tile can be owned.
@@ -124,7 +127,7 @@ var Tiles = []Tile{
 	{Index: 1, Name: "Zollgasse", Type: TypeStreet, Group: GroupBraun, Price: 60, Rents: []int{2, 10, 30, 90, 160, 250}, Build: 50, Sell: 42},
 	{Index: 2, Name: "Gemeinschaftsfeld", Type: TypeChest},
 	{Index: 3, Name: "Münzgasse", Type: TypeStreet, Group: GroupBraun, Price: 60, Rents: []int{4, 20, 60, 180, 320, 450}, Build: 50, Sell: 42},
-	{Index: 4, Name: "Einkommensteuer", Type: TypeTax, Tax: 200},
+	{Index: 4, Name: "Einkommensteuer", Type: TypeTax, TaxPercent: 10},
 	{Index: 5, Name: "Tankstelle Süd", Type: TypeTankstelle, Group: GroupTankstelle, Price: 200, Rents: []int{25, 50, 100, 200}, Sell: 140},
 	{Index: 6, Name: "Marktstraße", Type: TypeStreet, Group: GroupHellblau, Price: 100, Rents: []int{6, 30, 90, 270, 400, 550}, Build: 50, Sell: 70},
 	{Index: 7, Name: "Ereignisfeld", Type: TypeChance},
@@ -263,6 +266,17 @@ func (c *Catalog) validate() error {
 		case TypeGo, TypeStreet, TypeTankstelle, TypeUtility, TypeTax, TypeChance, TypeChest, TypeJail, TypeGotoJail, TypeParking:
 		default:
 			return fmt.Errorf("tile %d has unknown type %q", i, t.Type)
+		}
+		if t.Type == TypeTax {
+			if t.Tax < 0 || t.TaxPercent < 0 || (t.Tax == 0 && t.TaxPercent == 0) {
+				return fmt.Errorf("tile %d has invalid tax data", i)
+			}
+			if t.Tax > 0 && t.TaxPercent > 0 {
+				return fmt.Errorf("tile %d has both a fixed tax and a tax percentage", i)
+			}
+			if t.TaxPercent > 100 {
+				return fmt.Errorf("tile %d tax percentage = %d, want 0..100", i, t.TaxPercent)
+			}
 		}
 		if t.Buyable() {
 			if t.Price <= 0 {

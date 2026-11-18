@@ -23,6 +23,7 @@ export interface BoardTile {
 	build?: number;
 	sell?: number;
 	tax?: number;
+	taxPercent?: number;
 }
 
 export interface Rules {
