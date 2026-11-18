@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { session } from '#lib/session.svelte';
@@ -41,6 +41,20 @@
 	const game = $derived(room?.game ?? null);
 	const me = $derived(session.me);
 	const isMyTurn = $derived(session.isMyTurn);
+
+	// The estate card keeps its own state; only the user toggles it.
+	let estateOpen = $state(preferences.current.estatePanelOpen);
+
+	$effect(() => {
+		const open = estateOpen;
+		// Persist without tracking preferences.current, otherwise update()
+		// would re-trigger this effect in a loop.
+		untrack(() => {
+			if (preferences.current.estatePanelOpen !== open) {
+				preferences.update({ estatePanelOpen: open });
+			}
+		});
+	});
 
 	// Only a lobby needs presence; leaving the lobby or the page closes this scope.
 	$effect(() => {
@@ -175,7 +189,7 @@
 				</section>
 
 				{#if me && game.phase === 'playing'}
-					<details class="card" open={isMyTurn}>
+					<details class="card" bind:open={estateOpen}>
 						<summary>Bauen und Verwalten</summary>
 						<EstatePanel {game} {me} {isMyTurn} onIntent={send} />
 					</details>
