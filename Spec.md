@@ -426,8 +426,10 @@ the client shows. There are no silent fallbacks.
   property yields no rent and cannot be built on. To take the property back the owner
   pays **60 %** of the purchase price (50 % principal plus 10 % interest).
 - **Selling to the bank**: the bank buys a property for **70 %** of its purchase price.
-  Houses/hotels on it must be sold back first. A mortgaged property is returned to the
-  bank for **nothing** — the 50 % mortgage is settled by the return.
+  Houses/hotels on it must be sold back first. A property can only be sold to the bank
+  when no street of its color group has houses or a hotel (as for mortgages). A mortgaged
+  property is returned to the bank for **nothing** — the 50 % mortgage is settled by the
+  return.
 - Both mechanisms are available (the German board has no mortgages, the international one
   has no selling to the bank — Subprime has both).
 - Mortgaging and selling to the bank are also available while the active player decides on

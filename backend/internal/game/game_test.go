@@ -1,6 +1,7 @@
 package game
 
 import (
+	"fmt"
 	"math/rand"
 	"testing"
 	"time"
@@ -433,6 +434,39 @@ func TestMortgageRequiresBuildingFreeGroup(t *testing.T) {
 	g.Tiles[3].Houses = 1
 	if err := g.Mortgage(0, 1); err == nil {
 		t.Error("Mortgage() = nil, want error while group has buildings")
+	}
+}
+
+func TestSellToBankRequiresBuildingFreeGroup(t *testing.T) {
+	for _, houses := range []int{1, 5} {
+		t.Run(fmt.Sprintf("sibling_houses_%d", houses), func(t *testing.T) {
+			g, _ := newTestGame(t, 2)
+			g.Tiles[1].Owner = 0
+			g.Tiles[3].Owner = 0
+			g.Tiles[3].Houses = houses
+			cash := g.Players[0].Cash
+
+			err := g.SellToBank(0, 1)
+			if err == nil {
+				t.Fatal("SellToBank() = nil, want error while group has buildings")
+			}
+			re, ok := err.(*RuleError)
+			if !ok {
+				t.Fatalf("SellToBank() error = %v (%T), want *RuleError", err, err)
+			}
+			if re.Code != "has_buildings" {
+				t.Errorf("error code = %q, want %q", re.Code, "has_buildings")
+			}
+			if re.Message != "Die Farbgruppe muss frei von Gebäuden sein." {
+				t.Errorf("error message = %q, want %q", re.Message, "Die Farbgruppe muss frei von Gebäuden sein.")
+			}
+			if g.Tiles[1].Owner != 0 {
+				t.Errorf("owner = %d, want 0", g.Tiles[1].Owner)
+			}
+			if got := g.Players[0].Cash; got != cash {
+				t.Errorf("cash = %d, want unchanged %d", got, cash)
+			}
+		})
 	}
 }
 

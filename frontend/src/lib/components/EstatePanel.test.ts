@@ -130,6 +130,37 @@ describe('EstatePanel', () => {
 		expect(dialog.textContent).toContain('Hypothek verfällt');
 	});
 
+	it('disables bank sale when another street of the color group has buildings', () => {
+		render(EstatePanel, {
+			game: gameWithLevels(1, 0),
+			me: player(),
+			isMyTurn: true,
+			onIntent: () => {}
+		});
+
+		expect(screen.getByRole('button', { name: 'An Bank (42 GE)' })).toBeDisabled();
+	});
+
+	it('drops the bank-sale dialog when the color group becomes built', async () => {
+		const onIntent = vi.fn();
+		const { rerender } = render(EstatePanel, {
+			game: game(),
+			me: player(),
+			isMyTurn: true,
+			onIntent
+		});
+
+		await fireEvent.click(screen.getByRole('button', { name: 'An Bank (42 GE)' }));
+		expect(screen.getByRole('dialog', { name: 'Verkauf an die Bank bestätigen' })).toBeInTheDocument();
+
+		const built = game();
+		built.tiles[2] = { owner: 0, houses: 1, mortgaged: false };
+		await rerender({ game: built, me: player(), isMyTurn: true, onIntent });
+
+		expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+		expect(onIntent).not.toHaveBeenCalled();
+	});
+
 	it('only enables selling from the highest-level street in the group', () => {
 		render(EstatePanel, {
 			game: gameWithLevels(2, 1),

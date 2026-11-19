@@ -45,7 +45,7 @@
 	$effect(() => {
 		if (pendingSale === null) return;
 		const state = game.tiles[pendingSale];
-		if (!isMyTurn || !state || state.owner !== me.seat || state.houses > 0) pendingSale = null;
+		if (!state || state.owner !== me.seat || !canSellToBank(pendingSale)) pendingSale = null;
 	});
 
 	// Focus the popup and lock the page behind it, like the other dialogs.
@@ -160,6 +160,14 @@
 		return !groupTiles(tile.group).some((t) => game.tiles[t.index].houses > 0);
 	}
 
+	function canSellToBank(index: number): boolean {
+		if (!isMyTurn) return false;
+		const tile = game.board[index];
+		const state = game.tiles[index];
+		if (state.houses > 0) return false;
+		return !groupTiles(tile.group).some((t) => game.tiles[t.index].houses > 0);
+	}
+
 	function stateLabel(houses: number, mortgaged: boolean): string {
 		const build = houses === 5 ? 'Hotel' : houses > 0 ? `${houses} ${houses === 1 ? 'Haus' : 'Häuser'}` : 'unbebaut';
 		return mortgaged ? `${build} · Hypothek` : build;
@@ -227,7 +235,7 @@
 								</button>
 							{/if}
 							{#if state.houses === 0}
-								<button class="plain" disabled={!isMyTurn} onclick={() => (pendingSale = tile.index)}>
+								<button class="plain" disabled={!canSellToBank(tile.index)} onclick={() => (pendingSale = tile.index)}>
 									An Bank ({state.mortgaged ? '0 GE' : formatMoney(tile.sell)})
 								</button>
 							{/if}

@@ -178,8 +178,8 @@ func (g *Game) SellToBank(player, idx int) error {
 	if st.Owner != player || !t.Buyable() {
 		return g.fail("not_owner", "Du besitzt dieses Feld nicht.")
 	}
-	if st.Houses > 0 {
-		return g.fail("has_buildings", "Gebäude müssen zuerst verkauft werden.")
+	if st.Houses > 0 || (t.Group != "" && g.groupHasBuildings(t.Group)) {
+		return g.fail("has_buildings", "Die Farbgruppe muss frei von Gebäuden sein.")
 	}
 	amount := 0
 	if !st.Mortgaged {
