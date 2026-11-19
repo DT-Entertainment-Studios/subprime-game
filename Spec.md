@@ -1064,7 +1064,8 @@ Why each open point was resolved the way it was.
   card catalog: the exact wording of the second "advance to the next Tankstelle" card, and
   whether the M50 dividend card is still part of the current German chance deck. Both
   have a documented fallback (see the card research notes).
-- **Utility share rounding**: rounded down when paid from one player to another.
+- **Utility share rounding**: rounded down when both parties are players, rounded up
+  when the share goes to the bank.
 - **Jail fine**: 50 GE; three failed escape attempts, then the fine is mandatory.
 - **Room codes**: 6 uppercase letters, unambiguous alphabet (no O/0, I/1).
 - **Language**: UI and all game content in German; repository, spec, code, and comments
