@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/DT-Entertainment-Studios/subprime-game/backend/internal/board"
+	"github.com/DT-Entertainment-Studios/subprime-game/backend/internal/rng"
 )
 
 type testClock struct {
@@ -39,6 +40,27 @@ func newTestGame(t *testing.T, count int) (*Game, *testClock) {
 
 func setDice(g *Game, a, b int) {
 	g.dice = func() (int, int) { return a, b }
+}
+
+func TestNewDefaultsToCryptoRand(t *testing.T) {
+	cat, err := board.New()
+	if err != nil {
+		t.Fatalf("board.New() error = %v", err)
+	}
+	players := []*Player{
+		{ID: "a", Name: "A", Color: "rot"},
+		{ID: "b", Name: "B", Color: "blau"},
+	}
+	g, err := New(cat, players, Options{})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	if g.rand == nil {
+		t.Fatal("New() default rand source is nil")
+	}
+	if _, ok := g.rand.(rng.Crypto); !ok {
+		t.Fatalf("New() default rand source = %T, want rng.Crypto", g.rand)
+	}
 }
 
 func TestRentLadders(t *testing.T) {

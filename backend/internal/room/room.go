@@ -3,15 +3,15 @@
 package room
 
 import (
-	crand "crypto/rand"
+	"crypto/rand"
 	"math/big"
-	"math/rand"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/DT-Entertainment-Studios/subprime-game/backend/internal/board"
 	"github.com/DT-Entertainment-Studios/subprime-game/backend/internal/game"
+	"github.com/DT-Entertainment-Studios/subprime-game/backend/internal/rng"
 	"github.com/DT-Entertainment-Studios/subprime-game/backend/internal/ws"
 )
 
@@ -253,8 +253,8 @@ type Room struct {
 	closed    bool
 	votes     map[string]map[string]struct{} // target user id -> voter user ids
 
-	now     func() time.Time
-	rngSeed func() *rand.Rand
+	now       func() time.Time
+	newRandom func() rng.Random
 }
 
 // Code returns the join code.
@@ -804,8 +804,8 @@ func (r *Room) startLocked(userID string) error {
 		return badRequest("not_enough_players", "Es braucht mindestens zwei Spieler.")
 	}
 	order := append([]string(nil), r.order...)
-	rng := r.rngSeed()
-	rng.Shuffle(len(order), func(i, j int) { order[i], order[j] = order[j], order[i] })
+	random := r.newRandom()
+	random.Shuffle(len(order), func(i, j int) { order[i], order[j] = order[j], order[i] })
 	players := make([]*game.Player, 0, len(order))
 	for _, id := range order {
 		m := r.members[id]
@@ -816,7 +816,7 @@ func (r *Room) startLocked(userID string) error {
 			Connected: r.connectedLocked(m.UserID),
 		})
 	}
-	g, err := game.New(r.cat, players, game.Options{Rand: rng, Now: r.now})
+	g, err := game.New(r.cat, players, game.Options{Rand: random, Now: r.now})
 	if err != nil {
 		return badRequest("cannot_start", "Das Spiel konnte nicht gestartet werden.")
 	}
@@ -916,7 +916,7 @@ func (r *Room) freeColorLocked() string {
 }
 
 // CreateRoom builds a lobby with the given host as first member.
-func newRoom(code string, cat *board.Catalog, now func() time.Time, seed func() *rand.Rand) *Room {
+func newRoom(code string, cat *board.Catalog, now func() time.Time, newRandom func() rng.Random) *Room {
 	return &Room{
 		code:      code,
 		cat:       cat,
@@ -925,7 +925,7 @@ func newRoom(code string, cat *board.Catalog, now func() time.Time, seed func() 
 		clients:   map[*Client]struct{}{},
 		votes:     map[string]map[string]struct{}{},
 		now:       now,
-		rngSeed:   seed,
+		newRandom: newRandom,
 	}
 }
 
@@ -951,7 +951,7 @@ func randomCode() (string, error) {
 	const length = 6
 	buf := make([]byte, length)
 	for i := range buf {
-		n, err := crand.Int(crand.Reader, big.NewInt(int64(len(alphabet))))
+		n, err := rand.Int(rand.Reader, big.NewInt(int64(len(alphabet))))
 		if err != nil {
 			return "", err
 		}
