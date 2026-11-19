@@ -36,14 +36,14 @@
 						</div>
 						<div class="row">
 							<button
-								class="primary"
-								aria-label={`Einladung nach ${invite.room} annehmen`}
-								onclick={() => onAccept(invite)}>Annehmen</button
-							>
-							<button
 								class="plain"
 								aria-label={`Einladung nach ${invite.room} ablehnen`}
 								onclick={() => onDecline(invite)}>Ablehnen</button
+							>
+							<button
+								class="primary"
+								aria-label={`Einladung nach ${invite.room} annehmen`}
+								onclick={() => onAccept(invite)}>Annehmen</button
 							>
 						</div>
 					</li>

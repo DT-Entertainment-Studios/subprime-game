@@ -185,9 +185,9 @@
 				<TradeDetails {game} {trade} />
 				{#if trade.to === me.seat}
 					<div class="row">
-						<button class="primary" onclick={() => onIntent({ type: 'respond_trade', tradeId: trade.id, accept: true })}>Annehmen</button>
 						<button class="plain" onclick={() => onIntent({ type: 'respond_trade', tradeId: trade.id, accept: false })}>Ablehnen</button>
 						<button class="plain" onclick={() => startCounter(trade)}>Gegenangebot</button>
+						<button class="primary" onclick={() => onIntent({ type: 'respond_trade', tradeId: trade.id, accept: true })}>Annehmen</button>
 					</div>
 				{:else if trade.from === me.seat}
 					<p class="muted waiting">Wartet auf die Antwort von {game.players[trade.to]?.name}.</p>
@@ -216,8 +216,8 @@
 			{@render tradeSide(`${partner.name} gibt`, partner, 'request', requestTiles, requestCards, requestCash, (v) => setCash('request', v))}
 		</div>
 		<div class="row">
-			<button class="primary" onclick={submit}>Angebot senden</button>
 			<button class="plain" onclick={resetForm}>Zurücksetzen</button>
+			<button class="primary" onclick={submit}>Angebot senden</button>
 		</div>
 	{/if}
 </div>

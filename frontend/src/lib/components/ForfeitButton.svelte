@@ -114,8 +114,8 @@
 				<p class="muted">Das offene Kaufangebot verfällt.</p>
 			{/if}
 			<div class="dialog-actions">
-				<button class="primary danger" onclick={confirm}>Ja, aufgeben</button>
 				<button class="plain" onclick={close}>Abbrechen</button>
+				<button class="primary danger" onclick={confirm}>Ja, aufgeben</button>
 			</div>
 		</div>
 	</div>

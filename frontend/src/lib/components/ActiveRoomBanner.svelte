@@ -93,10 +93,10 @@
 	</div>
 	<p class="hint">{hint}</p>
 	<div class="actions">
-		<button class="primary" disabled={leaving} onclick={onRejoin}>Wieder beitreten</button>
 		<button class="plain danger" disabled={leaving} onclick={open}>
 			{leaving ? 'Verlassen …' : 'Raum verlassen'}
 		</button>
+		<button class="primary" disabled={leaving} onclick={onRejoin}>Wieder beitreten</button>
 	</div>
 </section>
 
@@ -118,8 +118,8 @@
 			<h2>Raum verlassen</h2>
 			<p id="abandon-consequence">{consequence}</p>
 			<div class="dialog-actions">
-				<button class="primary danger" onclick={confirm}>Ja, Raum verlassen</button>
 				<button class="plain" onclick={close}>Abbrechen</button>
+				<button class="primary danger" onclick={confirm}>Ja, Raum verlassen</button>
 			</div>
 		</div>
 	</div>

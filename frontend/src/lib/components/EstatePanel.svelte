@@ -281,8 +281,8 @@
 			{/if}
 			<p class="muted">Der Verkauf lässt sich nicht rückgängig machen.</p>
 			<div class="dialog-actions">
-				<button class="primary danger" onclick={confirmSale}>Ja, verkaufen</button>
 				<button class="plain" onclick={closeSale}>Abbrechen</button>
+				<button class="primary danger" onclick={confirmSale}>Ja, verkaufen</button>
 			</div>
 		</div>
 	</div>

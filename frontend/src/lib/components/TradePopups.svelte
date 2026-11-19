@@ -71,12 +71,6 @@
 				{#if me && trade.to === me.seat}
 					<div class="row actions">
 						<button
-							class="primary"
-							onclick={() => onIntent({ type: 'respond_trade', tradeId: trade.id, accept: true })}
-						>
-							Annehmen
-						</button>
-						<button
 							class="plain"
 							onclick={() => onIntent({ type: 'respond_trade', tradeId: trade.id, accept: false })}
 						>
@@ -84,6 +78,12 @@
 						</button>
 						<button class="plain" onclick={() => { tradeUI.requestCounter(trade.id); dismiss(trade.id); }}>
 							Gegenangebot
+						</button>
+						<button
+							class="primary"
+							onclick={() => onIntent({ type: 'respond_trade', tradeId: trade.id, accept: true })}
+						>
+							Annehmen
 						</button>
 					</div>
 				{:else if me && trade.from === me.seat}

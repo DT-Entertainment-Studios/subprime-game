@@ -164,6 +164,7 @@
 							</p>
 						{/if}
 						<div class="row">
+							<button class="plain" onclick={() => onIntent({ type: 'decline' })}>Auktion starten</button>
 							<button
 								class="cta"
 								disabled={pendingShortfall > 0}
@@ -172,7 +173,6 @@
 							>
 								Kaufen
 							</button>
-							<button class="plain" onclick={() => onIntent({ type: 'decline' })}>Auktion starten</button>
 						</div>
 					{:else}
 						<p class="muted">Warte auf {current?.name} …</p>
@@ -238,9 +238,6 @@
 						</p>
 					{/if}
 					<div class="row">
-						<button class="cta" onclick={() => onIntent({ type: 'jail_option', option: 'roll' })}>
-							Startversuch (Pasch)
-						</button>
 						<button
 							class="plain"
 							disabled={me.cash < game.rules.jailFine}
@@ -254,6 +251,9 @@
 							onclick={() => onIntent({ type: 'jail_option', option: 'card' })}
 						>
 							Gutschein einlösen
+						</button>
+						<button class="cta" onclick={() => onIntent({ type: 'jail_option', option: 'roll' })}>
+							Startversuch (Pasch)
 						</button>
 					</div>
 				</div>
@@ -274,8 +274,8 @@
 								Wirklich aufgeben? Du scheidest endgültig aus dem Spiel aus und verlierst.
 							</p>
 							<div class="row">
-								<button class="primary danger" onclick={giveUp}>Ja, aufgeben</button>
 								<button class="plain" onclick={() => (confirmGiveUp = false)}>Abbrechen</button>
+								<button class="primary danger" onclick={giveUp}>Ja, aufgeben</button>
 							</div>
 						{:else}
 							<button class="plain danger" onclick={() => (confirmGiveUp = true)}>Aufgeben</button>
