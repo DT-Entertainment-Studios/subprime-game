@@ -345,7 +345,8 @@ func (g *Game) chargeRent(tenant, owner, idx, amount int) {
 }
 
 // applyUtilityShare pays 10 % of a rosa/orange/rot/gelb street rent to the
-// matching utility owner, or to the bank when the utility is unowned.
+// matching utility owner; no share when the utility is unowned, mortgaged or
+// owned by the street owner / an inmate.
 func (g *Game) applyUtilityShare(owner, idx, rent int) {
 	t := g.tile(idx)
 	var utilityName string
@@ -365,6 +366,9 @@ func (g *Game) applyUtilityShare(owner, idx, rent int) {
 		return
 	}
 	utilityOwner := g.Tiles[utility].Owner
+	if utilityOwner == Bank {
+		return
+	}
 	if g.Tiles[utility].Mortgaged {
 		return
 	}
@@ -375,15 +379,6 @@ func (g *Game) applyUtilityShare(owner, idx, rent int) {
 		return
 	}
 	share := rent * 10 / 100
-	if utilityOwner == Bank {
-		share = (rent*10 + 99) / 100
-		if share <= 0 {
-			return
-		}
-		g.settle(owner, map[int]int{Bank: share})
-		g.logf("utility_share", owner, share, "%s führt %d GE Nutzungsanteil an die Bank ab.", g.Players[owner].Name, share)
-		return
-	}
 	if !g.active(utilityOwner) {
 		return
 	}

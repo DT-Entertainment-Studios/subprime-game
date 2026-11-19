@@ -87,11 +87,11 @@ func TestUtilityShare(t *testing.T) {
 		rent        int
 		wantOwner   int
 		wantUtility int
-		wantBank    int
+		wantEvents  int
 	}{
-		{name: "to player rounds down", utilityOwn: 1, rent: 15, wantOwner: 1514, wantUtility: 1501},
-		{name: "to bank rounds up", utilityOwn: Bank, rent: 15, wantOwner: 1513, wantUtility: 1500, wantBank: 2},
-		{name: "same owner keeps the share", utilityOwn: 0, rent: 15, wantOwner: 1515, wantUtility: 1500},
+		{name: "to player rounds down", utilityOwn: 1, rent: 15, wantOwner: 1514, wantUtility: 1501, wantEvents: 1},
+		{name: "unowned utility keeps full rent", utilityOwn: Bank, rent: 15, wantOwner: 1515, wantUtility: 1500, wantEvents: 0},
+		{name: "same owner keeps the share", utilityOwn: 0, rent: 15, wantOwner: 1515, wantUtility: 1500, wantEvents: 0},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -104,6 +104,9 @@ func TestUtilityShare(t *testing.T) {
 			}
 			if got := g.Players[1].Cash; got != tc.wantUtility {
 				t.Errorf("utility cash = %d, want %d", got, tc.wantUtility)
+			}
+			if got := countEvents(g, "utility_share"); got != tc.wantEvents {
+				t.Errorf("utility_share events = %d, want %d", got, tc.wantEvents)
 			}
 		})
 	}
