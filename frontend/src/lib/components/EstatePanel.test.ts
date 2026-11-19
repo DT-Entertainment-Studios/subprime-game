@@ -80,6 +80,13 @@ function game(mortgaged = false): GameState {
 	};
 }
 
+function gameWithLevels(tile1: number, tile2: number): GameState {
+	const g = game();
+	g.tiles[1] = { owner: 0, houses: tile1, mortgaged: false };
+	g.tiles[2] = { owner: 0, houses: tile2, mortgaged: false };
+	return g;
+}
+
 describe('EstatePanel', () => {
 	it('asks for confirmation before selling a field to the bank', async () => {
 		const onIntent = vi.fn();
@@ -121,5 +128,33 @@ describe('EstatePanel', () => {
 		const dialog = screen.getByRole('dialog', { name: 'Verkauf an die Bank bestätigen' });
 		expect(dialog.textContent).toContain('0 GE');
 		expect(dialog.textContent).toContain('Hypothek verfällt');
+	});
+
+	it('only enables selling from the highest-level street in the group', () => {
+		render(EstatePanel, {
+			game: gameWithLevels(2, 1),
+			me: player(),
+			isMyTurn: true,
+			onIntent: () => {}
+		});
+
+		const buttons = screen.getAllByRole('button', { name: 'Haus verkaufen' });
+		expect(buttons).toHaveLength(2);
+		expect(buttons[0]).toBeEnabled(); // tile 1, level 2 (group maximum)
+		expect(buttons[1]).toBeDisabled(); // tile 2, level 1
+	});
+
+	it('treats a hotel as the highest level when enabling selling', () => {
+		render(EstatePanel, {
+			game: gameWithLevels(5, 4),
+			me: player(),
+			isMyTurn: true,
+			onIntent: () => {}
+		});
+
+		const buttons = screen.getAllByRole('button', { name: 'Haus verkaufen' });
+		expect(buttons).toHaveLength(2);
+		expect(buttons[0]).toBeEnabled(); // tile 1, hotel (level 5, maximum)
+		expect(buttons[1]).toBeDisabled(); // tile 2, level 4
 	});
 });

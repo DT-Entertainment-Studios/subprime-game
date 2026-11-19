@@ -414,6 +414,7 @@ the client shows. There are no silent fallbacks.
   the group's streets (houses 0–4, a hotel counts as five) may differ by at most 1.
   Levels 2/2/1 are allowed, and so is a hotel on one street next to streets with four
   houses (5/4/4); 3/1/1 and a hotel next to streets with three houses (5/3/3) are not.
+  This applies for building and selling.
 - Building happens in the pre-turn window (4.2), never while a move is pending.
 - Houses/hotels can be sold back to the bank at half the build price each (a hotel for
   `floor(buildCost / 2)`, see above).

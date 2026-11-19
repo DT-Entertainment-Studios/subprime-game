@@ -142,6 +142,16 @@
 		return me.cash >= tile.build;
 	}
 
+	function canSell(index: number): boolean {
+		if (!isMyTurn) return false;
+		const tile = game.board[index];
+		const state = game.tiles[index];
+		if (!tile.build || state.houses === 0) return false;
+		const levels = groupTiles(tile.group).map((t) => game.tiles[t.index].houses);
+		if (state.houses < Math.max(...levels)) return false;
+		return true;
+	}
+
 	function canMortgage(index: number): boolean {
 		if (!isMyTurn) return false;
 		const tile = game.board[index];
@@ -202,7 +212,7 @@
 								</button>
 							{/if}
 							{#if state.houses > 0}
-								<button class="plain" disabled={!isMyTurn} onclick={() => onIntent({ type: 'sell_building', tile: tile.index })}>
+								<button class="plain" disabled={!canSell(tile.index)} onclick={() => onIntent({ type: 'sell_building', tile: tile.index })}>
 									Haus verkaufen
 								</button>
 							{/if}

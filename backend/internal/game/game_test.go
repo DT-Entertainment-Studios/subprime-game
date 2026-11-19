@@ -459,6 +459,65 @@ func TestEvenBuilding(t *testing.T) {
 	}
 }
 
+func TestEvenSelling(t *testing.T) {
+	g, _ := newTestGame(t, 2)
+	for _, idx := range []int{6, 8, 9} {
+		g.Tiles[idx].Owner = 0
+	}
+
+	// Uneven group 2/2/1: only a street on the maximum level (2) may be sold.
+	g.Tiles[6].Houses = 2
+	g.Tiles[8].Houses = 2
+	g.Tiles[9].Houses = 1
+	cashBefore := g.Players[0].Cash
+	if err := g.SellBuilding(0, 9); err == nil {
+		t.Error("SellBuilding(0, 9) from the lowest level = nil, want error")
+	} else if re, ok := err.(*RuleError); !ok || re.Code != "even_sell" {
+		t.Errorf("SellBuilding(0, 9) error = %v (%T), want *RuleError with code even_sell", err, err)
+	}
+	if got := g.Players[0].Cash; got != cashBefore {
+		t.Errorf("cash after rejected sale = %d, want %d", got, cashBefore)
+	}
+	if got := g.Tiles[9].Houses; got != 1 {
+		t.Errorf("houses on tile 9 after rejected sale = %d, want 1", got)
+	}
+	if err := g.SellBuilding(0, 6); err != nil {
+		t.Fatalf("SellBuilding(0, 6) error = %v", err)
+	}
+	if got := g.Tiles[6].Houses; got != 1 {
+		t.Errorf("houses on tile 6 = %d, want 1", got)
+	}
+	if got := g.Players[0].Cash - cashBefore; got != 25 {
+		t.Errorf("refund = %d, want 25", got)
+	}
+
+	// Hotel group 5/4/4: the hotel counts as level 5 and must be sold first.
+	g.Tiles[6].Houses = 5
+	g.Tiles[8].Houses = 4
+	g.Tiles[9].Houses = 4
+	cashBefore = g.Players[0].Cash
+	if err := g.SellBuilding(0, 8); err == nil {
+		t.Error("SellBuilding(0, 8) from level 4 next to a hotel = nil, want error")
+	} else if re, ok := err.(*RuleError); !ok || re.Code != "even_sell" {
+		t.Errorf("SellBuilding(0, 8) error = %v (%T), want *RuleError with code even_sell", err, err)
+	}
+	if got := g.Players[0].Cash; got != cashBefore {
+		t.Errorf("cash after rejected hotel-group sale = %d, want %d", got, cashBefore)
+	}
+	if got := g.Tiles[8].Houses; got != 4 {
+		t.Errorf("houses on tile 8 after rejected sale = %d, want 4", got)
+	}
+	if err := g.SellBuilding(0, 6); err != nil {
+		t.Fatalf("SellBuilding(0, 6) hotel sale error = %v", err)
+	}
+	if got := g.Tiles[6].Houses; got != 4 {
+		t.Errorf("houses on tile 6 after hotel sale = %d, want 4", got)
+	}
+	if got := g.Players[0].Cash - cashBefore; got != 25 {
+		t.Errorf("hotel refund = %d, want 25", got)
+	}
+}
+
 func TestDebtInsteadOfBankruptcy(t *testing.T) {
 	g, _ := newTestGame(t, 2)
 	g.Tiles[1].Owner = 0
