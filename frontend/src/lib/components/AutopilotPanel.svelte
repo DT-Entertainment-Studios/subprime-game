@@ -1,14 +1,14 @@
 <script lang="ts">
 	import type { AutopilotJail, AutopilotSettings, GameState, Intent, Player } from '#lib/types';
 	import { autopilotStopLabel, groupColor, groupLabel, STREET_GROUPS } from '#lib/format';
+	import { preferences } from '#lib/prefs.svelte';
 
 	const DEFAULTS: AutopilotSettings = {
 		enabled: false,
 		buyAlways: true,
 		jail: 'none',
 		buildGroups: [],
-		liquidity: 0,
-		hideCards: false
+		liquidity: 0
 	};
 
 	const MAX_LIQUIDITY = 100000;
@@ -143,10 +143,10 @@
 		<input
 			id="autopilot-hide-cards"
 			type="checkbox"
-			checked={config.hideCards}
+			checked={preferences.current.hideCards}
 			disabled={me.bankrupt}
 			aria-describedby="autopilot-hide-cards-hint"
-			onchange={(event) => update({ hideCards: event.currentTarget.checked })}
+			onchange={(event) => preferences.update({ hideCards: event.currentTarget.checked })}
 		/>
 		<span>Keine Karten anzeigen</span>
 	</label>

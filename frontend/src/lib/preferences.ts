@@ -6,6 +6,7 @@ export interface Preferences {
 	zoom: number;
 	animations: boolean;
 	color: string;
+	hideCards: boolean;
 }
 
 const STORAGE_KEY = 'subprime.preferences';
@@ -14,7 +15,8 @@ const DEFAULTS: Preferences = {
 	theme: 'light',
 	zoom: 1,
 	animations: true,
-	color: 'rot'
+	color: 'rot',
+	hideCards: false
 };
 
 export function loadPreferences(): Preferences {
@@ -27,7 +29,8 @@ export function loadPreferences(): Preferences {
 			theme: parsed.theme === 'dark' ? 'dark' : 'light',
 			zoom: typeof parsed.zoom === 'number' && parsed.zoom > 0.5 && parsed.zoom < 2 ? parsed.zoom : 1,
 			animations: parsed.animations !== false,
-			color: typeof parsed.color === 'string' ? parsed.color : DEFAULTS.color
+			color: typeof parsed.color === 'string' ? parsed.color : DEFAULTS.color,
+			hideCards: parsed.hideCards === true
 		};
 	} catch {
 		return { ...DEFAULTS };

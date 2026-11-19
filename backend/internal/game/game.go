@@ -257,7 +257,6 @@ func New(cat *board.Catalog, players []*Player, opts Options) (*Game, error) {
 			Jail:        AutopilotJailNone,
 			BuildGroups: []string{},
 			Liquidity:   0,
-			HideCards:   false,
 		}
 		p.autopilotNextAt = time.Time{}
 	}

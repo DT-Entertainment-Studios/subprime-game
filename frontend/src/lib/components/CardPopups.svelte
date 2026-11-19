@@ -3,6 +3,7 @@
 	// to the bottom-left corner, so all players see what happened without
 	// opening the event log (Spec.md §4.9). No modal, no focus theft.
 	import type { GameEvent, GameState, Player } from '#lib/types';
+	import { preferences } from '#lib/prefs.svelte';
 	import CardToast from './CardToast.svelte';
 
 	let { game, me = null }: { game: GameState; me?: Player | null } = $props();
@@ -20,7 +21,7 @@
 	let draws = $state<CardDraw[]>([]);
 
 	const suppress = $derived(
-		me?.autopilot?.active === true && me?.autopilot?.config?.hideCards === true
+		me?.autopilot?.active === true && preferences.current.hideCards === true
 	);
 	const open = $derived(
 		suppress ? [] : draws.filter((draw) => !dismissed.has(draw.event.seq))

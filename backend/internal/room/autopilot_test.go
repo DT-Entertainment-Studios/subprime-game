@@ -102,7 +102,6 @@ func TestSetAutopilotIntent(t *testing.T) {
 		Jail:        game.AutopilotJailPay,
 		BuildGroups: []string{"hellblau", "braun"},
 		Liquidity:   200,
-		HideCards:   true,
 	}
 	if err := r.HandleIntent("host", Intent{Type: "set_autopilot", Autopilot: &settings}); err != nil {
 		t.Fatalf("set_autopilot error = %v", err)
@@ -124,9 +123,6 @@ func TestSetAutopilotIntent(t *testing.T) {
 	}
 	if cfg.Liquidity != 200 {
 		t.Errorf("owner config liquidity = %d, want 200", cfg.Liquidity)
-	}
-	if !cfg.HideCards {
-		t.Error("owner config hideCards = false, want true")
 	}
 	if want := []string{"braun", "hellblau"}; !slices.Equal(cfg.BuildGroups, want) {
 		t.Errorf("owner config groups = %v, want %v", cfg.BuildGroups, want)
@@ -342,7 +338,6 @@ func TestAutopilotSnapshotJSON(t *testing.T) {
 		Jail:        game.AutopilotJailPay,
 		BuildGroups: []string{"hellblau", "braun"},
 		Liquidity:   200,
-		HideCards:   true,
 	}
 	if err := r.HandleIntent("host", Intent{Type: "set_autopilot", Autopilot: &settings}); err != nil {
 		t.Fatalf("set_autopilot error = %v", err)
@@ -364,7 +359,6 @@ func TestAutopilotSnapshotJSON(t *testing.T) {
 		`"jail":"pay"`,
 		`"buildGroups":["braun","hellblau"]`,
 		`"liquidity":200`,
-		`"hideCards":true`,
 	} {
 		if !strings.Contains(ownerAP, want) {
 			t.Errorf("owner autopilot JSON = %s, want %s", ownerAP, want)

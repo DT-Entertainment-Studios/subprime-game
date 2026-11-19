@@ -1,7 +1,8 @@
-import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, within } from '@testing-library/svelte';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, fireEvent, render, screen, within } from '@testing-library/svelte';
 import AutopilotPanel from './AutopilotPanel.svelte';
 import type { AutopilotSettings, GameEvent, GameState, Player } from '#lib/types';
+import { preferences } from '#lib/prefs.svelte';
 
 const board = [
 	{ index: 0, name: 'Los', type: 'go' },
@@ -80,7 +81,6 @@ function config(overrides: Partial<AutopilotSettings> = {}): AutopilotSettings {
 		jail: 'none',
 		buildGroups: [],
 		liquidity: 0,
-		hideCards: false,
 		...overrides
 	};
 }
@@ -135,6 +135,14 @@ function stopEvent(seq: number, playerSeat: number, reason: string): GameEvent {
 function powerRow(): HTMLElement {
 	return screen.getByRole('switch', { name: 'Autopilot aktiv' }).closest('.power') as HTMLElement;
 }
+
+beforeEach(() => {
+	preferences.update({ hideCards: false });
+});
+
+afterEach(() => {
+	preferences.update({ hideCards: false });
+});
 
 describe('AutopilotPanel controls', () => {
 	it('renders the switch, buy, jail, build and liquidity controls', () => {
@@ -249,7 +257,6 @@ describe('AutopilotPanel intents', () => {
 		expect(onIntent).toHaveBeenCalledWith({
 			type: 'set_autopilot',
 			autopilot: {
-				hideCards: false,
 				enabled: true,
 				buyAlways: true,
 				jail: 'none',
@@ -268,7 +275,6 @@ describe('AutopilotPanel intents', () => {
 		expect(onIntent).toHaveBeenCalledWith({
 			type: 'set_autopilot',
 			autopilot: {
-				hideCards: false,
 				enabled: true,
 				buyAlways: false,
 				jail: 'none',
@@ -278,11 +284,39 @@ describe('AutopilotPanel intents', () => {
 		});
 	});
 
-	it('sends hideCards in the full config when the checkbox changes', async () => {
+	it('mirrors the hideCards preference in the checkbox', async () => {
+		render(AutopilotPanel, { game: game(), me: me(), onIntent: vi.fn() });
+
+		expect(screen.getByLabelText('Keine Karten anzeigen')).not.toBeChecked();
+
+		await act(async () => {
+			preferences.update({ hideCards: true });
+		});
+		expect(screen.getByLabelText('Keine Karten anzeigen')).toBeChecked();
+
+		await act(async () => {
+			preferences.update({ hideCards: false });
+		});
+		expect(screen.getByLabelText('Keine Karten anzeigen')).not.toBeChecked();
+	});
+
+	it('updates only the local preference when the checkbox changes', async () => {
 		const onIntent = vi.fn();
 		render(AutopilotPanel, { game: game(), me: me({}, { enabled: true }), onIntent });
 
 		await fireEvent.click(screen.getByLabelText('Keine Karten anzeigen'));
+
+		expect(screen.getByLabelText('Keine Karten anzeigen')).toBeChecked();
+		expect(preferences.current.hideCards).toBe(true);
+		expect(onIntent).not.toHaveBeenCalled();
+	});
+
+	it('keeps the checkbox checked across an autopilot toggle (AC1)', async () => {
+		const onIntent = vi.fn();
+		preferences.update({ hideCards: true });
+		const { rerender } = render(AutopilotPanel, { game: game(), me: me(), onIntent });
+
+		await fireEvent.click(screen.getByRole('switch', { name: 'Autopilot aktiv' }));
 
 		expect(onIntent).toHaveBeenCalledWith({
 			type: 'set_autopilot',
@@ -291,10 +325,13 @@ describe('AutopilotPanel intents', () => {
 				buyAlways: true,
 				jail: 'none',
 				buildGroups: [],
-				liquidity: 0,
-				hideCards: true
+				liquidity: 0
 			}
 		});
+
+		await rerender({ game: game(), me: me({}, { enabled: true }), onIntent });
+
+		expect(screen.getByLabelText('Keine Karten anzeigen')).toBeChecked();
 	});
 
 	it.each([
@@ -309,7 +346,6 @@ describe('AutopilotPanel intents', () => {
 		expect(onIntent).toHaveBeenCalledWith({
 			type: 'set_autopilot',
 			autopilot: {
-				hideCards: false,
 				enabled: true,
 				buyAlways: true,
 				jail,
@@ -328,7 +364,6 @@ describe('AutopilotPanel intents', () => {
 		expect(onIntent).toHaveBeenCalledWith({
 			type: 'set_autopilot',
 			autopilot: {
-				hideCards: false,
 				enabled: true,
 				buyAlways: true,
 				jail: 'none',
@@ -351,7 +386,6 @@ describe('AutopilotPanel intents', () => {
 		expect(onIntent).toHaveBeenCalledWith({
 			type: 'set_autopilot',
 			autopilot: {
-				hideCards: false,
 				enabled: false,
 				buyAlways: true,
 				jail: 'none',
@@ -378,7 +412,6 @@ describe('AutopilotPanel intents', () => {
 		expect(onIntent).toHaveBeenCalledWith({
 			type: 'set_autopilot',
 			autopilot: {
-				hideCards: false,
 				enabled: true,
 				buyAlways: true,
 				jail: 'none',
@@ -436,7 +469,6 @@ describe('AutopilotPanel configured groups', () => {
 		expect(onIntent).toHaveBeenCalledWith({
 			type: 'set_autopilot',
 			autopilot: {
-				hideCards: false,
 				enabled: false,
 				buyAlways: true,
 				jail: 'none',

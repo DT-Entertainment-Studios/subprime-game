@@ -1,7 +1,8 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen } from '@testing-library/svelte';
 import CardPopups from './CardPopups.svelte';
 import type { GameEvent, GameState, Player } from '#lib/types';
+import { preferences } from '#lib/prefs.svelte';
 
 function player(seat: number, name: string, overrides: Partial<Player> = {}): Player {
 	return {
@@ -29,7 +30,7 @@ function player(seat: number, name: string, overrides: Partial<Player> = {}): Pl
 	};
 }
 
-function autopilotMe(active: boolean, hideCards: boolean): Player {
+function autopilotMe(active: boolean): Player {
 	return player(0, 'Anton', {
 		autopilot: {
 			active,
@@ -38,8 +39,7 @@ function autopilotMe(active: boolean, hideCards: boolean): Player {
 				buyAlways: true,
 				jail: 'none',
 				buildGroups: [],
-				liquidity: 0,
-				hideCards
+				liquidity: 0
 			}
 		}
 	});
@@ -96,7 +96,12 @@ async function drawCard(events: GameEvent[], me: Player | null = null) {
 	return result;
 }
 
+beforeEach(() => {
+	preferences.update({ hideCards: false });
+});
+
 afterEach(() => {
+	preferences.update({ hideCards: false });
 	vi.useRealTimers();
 });
 
@@ -237,21 +242,27 @@ describe('CardPopups', () => {
 	});
 
 	it('suppresses notices when the autopilot is active and hideCards is set', async () => {
-		await drawCard([card(1, 'ereignisfeld', 'Zahle 50 GE.')], autopilotMe(true, true));
+		await act(async () => {
+			preferences.update({ hideCards: true });
+		});
+		await drawCard([card(1, 'ereignisfeld', 'Zahle 50 GE.')], autopilotMe(true));
 
 		expect(screen.queryByLabelText('Ereigniskarte von Anton')).not.toBeInTheDocument();
 		expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
 	});
 
 	it('still shows notices when hideCards is set but the autopilot is inactive', async () => {
-		await drawCard([card(1, 'ereignisfeld', 'Zahle 50 GE.')], autopilotMe(false, true));
+		await act(async () => {
+			preferences.update({ hideCards: true });
+		});
+		await drawCard([card(1, 'ereignisfeld', 'Zahle 50 GE.')], autopilotMe(false));
 
 		expect(screen.getByLabelText('Ereigniskarte von Anton')).toBeInTheDocument();
 		expect(screen.getByRole('progressbar')).toBeInTheDocument();
 	});
 
 	it('still shows notices with an active autopilot and hideCards unset', async () => {
-		await drawCard([card(1, 'ereignisfeld', 'Zahle 50 GE.')], autopilotMe(true, false));
+		await drawCard([card(1, 'ereignisfeld', 'Zahle 50 GE.')], autopilotMe(true));
 
 		expect(screen.getByLabelText('Ereigniskarte von Anton')).toBeInTheDocument();
 		expect(screen.getByRole('progressbar')).toBeInTheDocument();
@@ -259,12 +270,13 @@ describe('CardPopups', () => {
 
 	it('removes a visible notice as soon as suppression becomes active', async () => {
 		const events = [card(1, 'ereignisfeld', 'Zahle 50 GE.')];
-		const { rerender } = await drawCard(events, autopilotMe(true, false));
+		const { rerender } = await drawCard(events, autopilotMe(true));
 
 		expect(screen.getByLabelText('Ereigniskarte von Anton')).toBeInTheDocument();
 
 		await act(async () => {
-			await rerender({ game: game(events), me: autopilotMe(true, true) });
+			preferences.update({ hideCards: true });
+			await rerender({ game: game(events), me: autopilotMe(true) });
 		});
 
 		expect(screen.queryByLabelText('Ereigniskarte von Anton')).not.toBeInTheDocument();
@@ -273,17 +285,21 @@ describe('CardPopups', () => {
 
 	it('does not show cards drawn during suppression after it ends', async () => {
 		const events = [card(1, 'ereignisfeld', 'Zahle 50 GE.')];
-		const { rerender } = await drawCard(events, autopilotMe(true, true));
+		await act(async () => {
+			preferences.update({ hideCards: true });
+		});
+		const { rerender } = await drawCard(events, autopilotMe(true));
 
 		expect(screen.queryByLabelText('Ereigniskarte von Anton')).not.toBeInTheDocument();
 
 		await act(async () => {
-			await rerender({ game: game(events), me: autopilotMe(false, true) });
+			await rerender({ game: game(events), me: autopilotMe(false) });
 		});
 		expect(screen.queryByLabelText('Ereigniskarte von Anton')).not.toBeInTheDocument();
 
 		await act(async () => {
-			await rerender({ game: game(events), me: autopilotMe(true, false) });
+			preferences.update({ hideCards: false });
+			await rerender({ game: game(events), me: autopilotMe(true) });
 		});
 		expect(screen.queryByLabelText('Ereigniskarte von Anton')).not.toBeInTheDocument();
 		expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
@@ -291,16 +307,20 @@ describe('CardPopups', () => {
 
 	it('shows a card drawn after suppression ends', async () => {
 		const events = [card(1, 'ereignisfeld', 'Zahle 50 GE.')];
-		const { rerender } = await drawCard(events, autopilotMe(true, true));
+		await act(async () => {
+			preferences.update({ hideCards: true });
+		});
+		const { rerender } = await drawCard(events, autopilotMe(true));
 
 		await act(async () => {
-			await rerender({ game: game(events), me: autopilotMe(true, false) });
+			preferences.update({ hideCards: false });
+			await rerender({ game: game(events), me: autopilotMe(true) });
 		});
 		expect(screen.queryByLabelText('Ereigniskarte von Anton')).not.toBeInTheDocument();
 
 		const next = [...events, card(2, 'gemeinschaftsfeld', 'Du erbst 100 GE.')];
 		await act(async () => {
-			await rerender({ game: game(next), me: autopilotMe(true, false) });
+			await rerender({ game: game(next), me: autopilotMe(true) });
 		});
 
 		expect(screen.queryByLabelText('Ereigniskarte von Anton')).not.toBeInTheDocument();
