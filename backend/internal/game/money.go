@@ -365,6 +365,12 @@ func (g *Game) applyUtilityShare(owner, idx, rent int) {
 		return
 	}
 	utilityOwner := g.Tiles[utility].Owner
+	if g.Tiles[utility].Mortgaged {
+		return
+	}
+	if utilityOwner >= 0 && utilityOwner < len(g.Players) && g.Players[utilityOwner].InJail {
+		return
+	}
 	if utilityOwner == owner {
 		return
 	}

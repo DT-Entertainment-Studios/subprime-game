@@ -393,6 +393,9 @@ the client shows. There are no silent fallbacks.
   - The share is never paid to the property owner themselves: if the property owner also
     owns the utility, no transfer happens.
   - If the utility tile is unowned, the share goes to the bank.
+  - **No share when the matching utility is mortgaged or its owner sits in jail
+    (Werkstatt)**: in either case the street owner keeps the full rent and no share is
+    paid at all, not even to the bank.
   - **Rounding**: a fractional share is rounded down when both parties are players, and
     rounded up (against the property owner) when the receiving side is the bank — the
     general Subprime rule "amounts that cannot be paid out are always rounded against
@@ -575,7 +578,7 @@ The following are fixed for v1.0 and shown in the lobby:
 | Rent in jail | owner collects no rent, tenant pays nothing |
 | Unbuilt rent with a complete color group | doubled (classic rule) |
 | Utility rent | 4× dice, 10× dice when both utilities are owned |
-| Utility share | 10 % of rosa/orange street rent to Elektrizitätswerk, 10 % (down) of rot/gelb street rent to Wasserwerk |
+| Utility share | 10 % of rosa/orange street rent to Elektrizitätswerk, 10 % (down) of rot/gelb street rent to Wasserwerk; no share if the matching utility is mortgaged or its owner is in jail (Werkstatt), the street owner keeps the full rent |
 | Mortgage | bank lends 50 %, unmortgage costs 60 %, only for a building-free group |
 | Selling to the bank | 70 % of the purchase price; a mortgaged property returns for 0 |
 | Buildings | levels within a group differ by at most 1; bank stock unlimited |
@@ -943,7 +946,9 @@ Why each open point was resolved the way it was.
   no extra turn.
 - **Utility share scope**: only the rent of the rosa/orange/rot/gelb streets flows to the
   Elektrizitätswerk / Wasserwerk — not the rent of the other color groups, Tankstellen or
-  utilities.
+  utilities. The share is also skipped entirely when the matching utility is mortgaged or
+  its owner is in jail (Werkstatt); the street owner keeps the full rent and no payment
+  goes to the bank either.
 - **Mortgage preconditions**: a property can only be mortgaged while its whole color group is
   free of buildings; a mortgaged property sold to the bank pays nothing (the mortgage is
   settled by the return).

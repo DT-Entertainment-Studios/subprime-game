@@ -109,6 +109,45 @@ func TestUtilityShare(t *testing.T) {
 	}
 }
 
+func TestUtilityShareMortgageAndJail(t *testing.T) {
+	tests := []struct {
+		name        string
+		street      int
+		utility     int
+		utilityOwn  int
+		mortgaged   bool
+		ownerInJail bool
+		wantOwner   int
+		wantUtility int
+	}{
+		{name: "electricity mortgaged", street: 11, utility: 12, utilityOwn: 1, mortgaged: true, wantOwner: 1515, wantUtility: 1500},
+		{name: "electricity owner in jail", street: 11, utility: 12, utilityOwn: 1, ownerInJail: true, wantOwner: 1515, wantUtility: 1500},
+		{name: "water mortgaged", street: 21, utility: 28, utilityOwn: 1, mortgaged: true, wantOwner: 1515, wantUtility: 1500},
+		{name: "water owner in jail", street: 21, utility: 28, utilityOwn: 1, ownerInJail: true, wantOwner: 1515, wantUtility: 1500},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			g, _ := newTestGame(t, 3)
+			g.Tiles[tc.street].Owner = 0
+			g.Tiles[tc.utility].Owner = tc.utilityOwn
+			g.Tiles[tc.utility].Mortgaged = tc.mortgaged
+			if tc.utilityOwn != Bank {
+				g.Players[tc.utilityOwn].InJail = tc.ownerInJail
+			}
+			g.chargeRent(2, 0, tc.street, 15)
+			if got := g.Players[0].Cash; got != tc.wantOwner {
+				t.Errorf("owner cash = %d, want %d", got, tc.wantOwner)
+			}
+			if got := g.Players[1].Cash; got != tc.wantUtility {
+				t.Errorf("utility cash = %d, want %d", got, tc.wantUtility)
+			}
+			if got := countEvents(g, "utility_share"); got != 0 {
+				t.Errorf("utility_share events = %d, want 0", got)
+			}
+		})
+	}
+}
+
 func TestUtilityShareGroups(t *testing.T) {
 	tests := []struct {
 		name      string
