@@ -7,6 +7,7 @@
 	import { preferences } from '#lib/prefs.svelte';
 	import type { Intent } from '#lib/types';
 	import { formatMoney } from '#lib/format';
+	import { createScreenWakeLock } from '#lib/wake-lock';
 	import Board from '#lib/components/Board.svelte';
 	import ForfeitButton from '#lib/components/ForfeitButton.svelte';
 	import Lobby from '#lib/components/Lobby.svelte';
@@ -26,6 +27,8 @@
 	let joining = $state(false);
 	let leaving = $state(false);
 
+	const wakeLock = createScreenWakeLock();
+
 	onMount(() => {
 		void session.init().then(async () => {
 			await session.load(code);
@@ -34,6 +37,7 @@
 		return () => {
 			session.disconnect();
 			presence.disconnectRoom(code);
+			wakeLock.dispose();
 		};
 	});
 
@@ -64,6 +68,9 @@
 		if (room?.phase === 'lobby') presence.connectRoom(code);
 		else presence.disconnectRoom(code);
 	});
+
+	// Keep the screen on for the whole running game, release it otherwise.
+	$effect(() => wakeLock.setActive(room?.phase === 'playing'));
 
 	function send(intent: Intent) {
 		session.send(intent);
