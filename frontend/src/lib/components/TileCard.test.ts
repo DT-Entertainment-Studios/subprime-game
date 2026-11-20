@@ -9,12 +9,13 @@ const board = [
 	{ index: 0, name: 'Los', type: 'go' },
 	{ index: 1, name: 'Zollgasse', type: 'street', group: 'braun', price: 60, rents: RENTS_STREET, build: 50, sell: 42 },
 	{ index: 2, name: 'Münzgasse', type: 'street', group: 'braun', price: 60, rents: [4, 20, 60, 180, 320, 450], build: 50, sell: 42 },
+	{ index: 4, name: 'Einkommensteuer', type: 'tax', taxPercent: 10 },
 	{ index: 11, name: 'Gartenstraße', type: 'street', group: 'rosa', price: 120, rents: [4, 20, 60, 180, 320, 450], build: 60, sell: 50 },
-	{ index: 4, name: 'Einkommensteuer', type: 'tax', tax: 200 },
 	{ index: 5, name: 'Tankstelle Süd', type: 'tankstelle', group: 'tankstelle', price: 200, rents: [25, 50, 100, 200], sell: 140 },
 	{ index: 7, name: 'Ereignisfeld', type: 'chance' },
 	{ index: 12, name: 'Elektrizitätswerk', type: 'utility', group: 'versorger', price: 150, sell: 105 },
-	{ index: 15, name: 'Tankstelle West', type: 'tankstelle', group: 'tankstelle', price: 200, rents: [25, 50, 100, 200], sell: 140 }
+	{ index: 15, name: 'Tankstelle West', type: 'tankstelle', group: 'tankstelle', price: 200, rents: [25, 50, 100, 200], sell: 140 },
+	{ index: 38, name: 'Zusatzsteuer', type: 'tax', tax: 100 }
 ] as GameState['board'];
 
 function player(seat: number, name: string): Player {
@@ -72,7 +73,7 @@ function tileState(_index: number, over: Partial<TileState> = {}): TileState {
 
 /** Full TileState array (positions = board indexes) with the given overrides. */
 function withTiles(g: GameState, entries: Record<number, Partial<TileState>>): GameState {
-	g.tiles = Array.from({ length: 16 }, () => tileState(-1));
+	g.tiles = Array.from({ length: 40 }, () => tileState(-1));
 	for (const [idx, over] of Object.entries(entries)) {
 		Object.assign(g.tiles[Number(idx)], over);
 	}
@@ -144,10 +145,15 @@ describe('TileCard', () => {
 		expect(screen.queryByText(/Hotel/)).toBeNull();
 	});
 
-	it('shows the tax amount for tax fields without a rent table', () => {
+	it('shows the percentage for a percentage tax field', () => {
 		render(TileCard, propsFor(4, tileState(4)));
-		expect(screen.getByText(/200 GE/)).toBeInTheDocument();
+		expect(screen.getByText(/10 % des Bargelds/)).toBeInTheDocument();
 		expect(screen.queryByText('kein Haus')).toBeNull();
+	});
+
+	it('shows the fixed amount for a fixed tax field', () => {
+		render(TileCard, propsFor(38, tileState(38)));
+		expect(screen.getByText(/100 GE/)).toBeInTheDocument();
 	});
 
 	it('mentions the chance card deck rule on chance fields', () => {

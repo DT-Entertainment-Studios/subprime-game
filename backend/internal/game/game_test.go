@@ -42,6 +42,29 @@ func setDice(g *Game, a, b int) {
 	g.dice = func() (int, int) { return a, b }
 }
 
+func TestTaxFields(t *testing.T) {
+	t.Run("percentage tax takes a share of the cash", func(t *testing.T) {
+		g, _ := newTestGame(t, 2)
+		setDice(g, 1, 3) // 0 -> 4, Einkommensteuer (10 %)
+		if err := g.Roll(0); err != nil {
+			t.Fatalf("Roll() error = %v", err)
+		}
+		if got := g.Players[0].Cash; got != 1350 {
+			t.Errorf("cash = %d, want 1350 after paying 10 %% of 1500", got)
+		}
+	})
+
+	t.Run("fixed tax keeps its flat amount", func(t *testing.T) {
+		g, _ := newTestGame(t, 2)
+		g.Players[0].Position = 35
+		setDice(g, 1, 2) // 35 -> 38, Zusatzsteuer (100 GE)
+		if err := g.Roll(0); err != nil {
+			t.Fatalf("Roll() error = %v", err)
+		}
+		if got := g.Players[0].Cash; got != 1400 {
+			t.Errorf("cash = %d, want 1400 after paying 100 GE", got)
+		}
+	})
 func TestNewDefaultsToCryptoRand(t *testing.T) {
 	cat, err := board.New()
 	if err != nil {

@@ -96,6 +96,21 @@ func TestBoardLayout(t *testing.T) {
 	}
 }
 
+func TestTaxFields(t *testing.T) {
+	cat, err := New()
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	income := cat.Tile(4)
+	if income.TaxPercent != 10 || income.Tax != 0 {
+		t.Errorf("Einkommensteuer tax = %d, percent = %d; want 0 and 10", income.Tax, income.TaxPercent)
+	}
+	extra := cat.Tile(38)
+	if extra.Tax != 100 || extra.TaxPercent != 0 {
+		t.Errorf("Zusatzsteuer tax = %d, percent = %d; want 100 and 0", extra.Tax, extra.TaxPercent)
+	}
+}
+
 func TestTankstelleFields(t *testing.T) {
 	cat, err := New()
 	if err != nil {
@@ -204,6 +219,27 @@ func TestInvalidCatalogRejected(t *testing.T) {
 			mutate: func(c *Catalog) {
 				c.Cards = slices.Clone(c.Cards)
 				c.Cards[0].Target = pos(40)
+			},
+		},
+		{
+			name: "tax without amount",
+			mutate: func(c *Catalog) {
+				c.Tiles = slices.Clone(c.Tiles)
+				c.Tiles[4].TaxPercent = 0
+			},
+		},
+		{
+			name: "tax with fixed amount and percentage",
+			mutate: func(c *Catalog) {
+				c.Tiles = slices.Clone(c.Tiles)
+				c.Tiles[4].Tax = 200
+			},
+		},
+		{
+			name: "tax percentage above 100",
+			mutate: func(c *Catalog) {
+				c.Tiles = slices.Clone(c.Tiles)
+				c.Tiles[4].TaxPercent = 150
 			},
 		},
 		{

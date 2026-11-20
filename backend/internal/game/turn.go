@@ -211,7 +211,7 @@ func (g *Game) resolveLanding(player, idx, depth int) {
 	case board.TypeStreet, board.TypeTankstelle, board.TypeUtility:
 		g.landProperty(player, idx)
 	case board.TypeTax:
-		g.payBank(player, t.Tax, "tax", "%s zahlt %d GE %s.", g.Players[player].Name, t.Tax, t.Name)
+		g.landTax(player, t)
 	case board.TypeChance:
 		g.drawAndApply(player, board.DeckChance, depth+1)
 	case board.TypeChest:
@@ -222,6 +222,18 @@ func (g *Game) resolveLanding(player, idx, depth int) {
 	case board.TypeGo, board.TypeJail, board.TypeParking:
 		// Nothing happens; Los salary is handled by the movement.
 	}
+}
+
+// landTax charges a tax tile: either its fixed amount or a percentage of the
+// player's current cash (rounded down to whole GE).
+func (g *Game) landTax(player int, t board.Tile) {
+	name := g.Players[player].Name
+	if t.TaxPercent > 0 {
+		amount := g.Players[player].Cash * t.TaxPercent / 100
+		g.payBank(player, amount, "tax", "%s zahlt %d GE %s (%d %% des Bargelds).", name, amount, t.Name, t.TaxPercent)
+		return
+	}
+	g.payBank(player, t.Tax, "tax", "%s zahlt %d GE %s.", name, t.Tax, t.Name)
 }
 
 // landProperty resolves a landing on an ownable tile with the normal rent
