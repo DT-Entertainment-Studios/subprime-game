@@ -23,6 +23,18 @@ describe('EventLog', () => {
 		expect(texts).toEqual(['Ereignis 3', 'Ereignis 2', 'Ereignis 1']);
 	});
 
+	it('shows dice totals with a sigma and without GE, money events keep GE', () => {
+		const roll: GameEvent = { ...event(1), type: 'roll', amount: 7 };
+		const money: GameEvent = { ...event(2), type: 'buy', amount: 1500 };
+		const { container } = render(EventLog, { props: { events: [roll, money] } });
+		const amounts = [...container.querySelectorAll('.amount')].map((node) => node.textContent ?? '');
+
+		const rollAmount = amounts.find((value) => value.includes('Σ'));
+		expect(rollAmount).toBe('Σ 7');
+		expect(rollAmount).not.toContain('GE');
+		expect(amounts.some((value) => value.includes('GE'))).toBe(true);
+	});
+
 	it('keeps a reader at the top on the newest entry', async () => {
 		const events = [event(1), event(2)];
 		const { container, rerender } = render(EventLog, { props: { events } });

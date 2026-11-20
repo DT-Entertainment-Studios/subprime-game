@@ -52,7 +52,7 @@
 			<span class="time">{formatTime(event.at)}</span>
 			<span class="text">{event.text}</span>
 			{#if event.amount}
-				<span class="amount">{formatMoney(event.amount)}</span>
+				<span class="amount">{event.type === 'roll' ? `Σ ${event.amount}` : formatMoney(event.amount)}</span>
 			{/if}
 		</div>
 	{/each}
