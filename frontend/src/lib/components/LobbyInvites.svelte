@@ -34,17 +34,27 @@
 	{:else}
 		<ul class="people">
 			{#each online as user (user.userId)}
+				{@const invited = sent.some((entry) => entry.userId === user.userId)}
 				<li>
 					<span class="name">{user.name}</span>
-					{#if sent.some((invite) => invite.userId === user.userId)}
-						<span class="badge">eingeladen</span>
-					{:else}
+					<!-- Button and badge share one cell; the wider state fixes the width. -->
+					<span class="invite-slot">
+						<span
+							class="badge"
+							class:slot-hidden={!invited}
+							aria-hidden={invited ? undefined : 'true'}
+						>eingeladen</span
+						>
 						<button
 							class="plain"
+							class:slot-hidden={invited}
+							disabled={invited}
+							aria-hidden={invited ? 'true' : undefined}
+							tabindex={invited ? -1 : undefined}
 							aria-label={`${user.name} einladen`}
 							onclick={() => onInvite(user.userId)}>Einladen</button
 						>
-					{/if}
+					</span>
 				</li>
 			{/each}
 		</ul>
@@ -58,16 +68,24 @@
 			{#each sent as invite (invite.id)}
 				<li>
 					<span class="name">{invite.name}</span>
-					{#if invite.fromId !== room.you.id}
-						<span class="muted">von {invite.fromName}</span>
-					{/if}
-					{#if invite.fromId === room.you.id}
+					<!-- Sender text and cancel button share one cell so no sibling moves. -->
+					<span class="invite-slot">
+						<span
+							class="muted"
+							class:slot-hidden={invite.fromId === room.you.id}
+							aria-hidden={invite.fromId === room.you.id ? 'true' : undefined}
+						>von {invite.fromName}</span
+						>
 						<button
 							class="plain"
+							class:slot-hidden={invite.fromId !== room.you.id}
+							disabled={invite.fromId !== room.you.id}
+							aria-hidden={invite.fromId !== room.you.id ? 'true' : undefined}
+							tabindex={invite.fromId !== room.you.id ? -1 : undefined}
 							aria-label={`Einladung an ${invite.name} abbrechen`}
 							onclick={() => onCancel(invite.id)}>Abbrechen</button
 						>
-					{/if}
+					</span>
 				</li>
 			{/each}
 		</ul>
@@ -97,5 +115,19 @@
 
 	.name {
 		flex: 1 1 auto;
+	}
+
+	/* The two states of each action share one cell so swaps never move siblings. */
+	.invite-slot {
+		display: inline-grid;
+		align-items: center;
+	}
+
+	.invite-slot > * {
+		grid-area: 1 / 1;
+	}
+
+	.slot-hidden {
+		visibility: hidden;
 	}
 </style>

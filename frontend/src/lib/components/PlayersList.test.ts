@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/svelte';
+import { fireEvent, render, screen, within } from '@testing-library/svelte';
 import PlayersList from './PlayersList.svelte';
 import type { GameState, Player } from '#lib/types';
 
@@ -70,10 +70,12 @@ describe('PlayersList votekick', () => {
 		const onVotekick = vi.fn();
 		render(PlayersList, { game: game(), me: me(), kickVotes: [], onVotekick });
 
-		const button = screen.getByText('Votekick 0/2');
+		const button = votekickButton('Ben');
+		expect(button).not.toBeNull();
+		expect(button).toHaveTextContent('Votekick 0/2');
 		expect(button).toHaveAttribute('aria-label', 'Votekick gegen Ben');
 
-		await fireEvent.click(button);
+		await fireEvent.click(button as HTMLElement);
 		expect(onVotekick).toHaveBeenCalledWith('ben');
 	});
 
@@ -85,7 +87,7 @@ describe('PlayersList votekick', () => {
 			onVotekick: () => {}
 		});
 
-		expect(screen.getByText('Votekick 1/2')).toBeInTheDocument();
+		expect(votekickButton('Ben')).toHaveTextContent('Votekick 1/2');
 	});
 
 	it('shows an already voted badge instead of a second button', () => {
@@ -114,7 +116,7 @@ describe('PlayersList votekick', () => {
 		render(PlayersList, { game: state, me: me(), kickVotes: [], onVotekick: () => {} });
 
 		expect(votekickButton('Ben')).toBeNull();
-		expect(screen.queryByText(/Votekick/)).toBeNull();
+		expect(screen.queryByRole('button', { name: /Votekick gegen/ })).toBeNull();
 	});
 
 	it('offers no votekick against the viewer', () => {
@@ -136,7 +138,51 @@ describe('PlayersList votekick', () => {
 			onVotekick: () => {}
 		});
 
-		expect(screen.queryByText(/Votekick/)).toBeNull();
+		expect(screen.queryByRole('button', { name: /Votekick gegen/ })).toBeNull();
+	});
+
+	it('does not reserve a vote slot for players who cannot vote', () => {
+		render(PlayersList, { game: game(), me: me(), kickVotes: [], onVotekick: () => {} });
+
+		const row = (name: string) => screen.getByText(name).closest('li') as HTMLElement;
+		expect(row('Anna').querySelector('.vote-slot')).toBeNull();
+		expect(row('Carla').querySelector('.vote-slot')).toBeNull();
+		expect(row('Ben').querySelector('.vote-slot')).not.toBeNull();
+	});
+
+	it('keeps both votekick states mounted in one stable slot', () => {
+		render(PlayersList, {
+			game: game(),
+			me: me(),
+			kickVotes: [],
+			onVotekick: () => {}
+		});
+
+		const ben = screen.getByText('Ben').closest('li') as HTMLElement;
+		const button = within(ben).getByRole('button', { name: 'Votekick gegen Ben' });
+		const badge = within(ben).getByText(/Votekick 0\/2 · abgestimmt/);
+		expect(button).not.toHaveClass('slot-hidden');
+		expect(badge).toHaveAttribute('aria-hidden', 'true');
+		expect(button.parentElement).toBe(badge.parentElement);
+		expect(button.parentElement).toHaveClass('vote-slot');
+	});
+
+	it('swaps the votekick button for the voted badge without unmounting the slot', () => {
+		render(PlayersList, {
+			game: game(),
+			me: me(),
+			kickVotes: [{ userId: 'ben', votes: 1, voted: true }],
+			onVotekick: () => {}
+		});
+
+		const ben = screen.getByText('Ben').closest('li') as HTMLElement;
+		const button = within(ben).getByText('Votekick 1/2');
+		const badge = within(ben).getByText('Votekick 1/2 · abgestimmt');
+		expect(button).toHaveClass('slot-hidden');
+		expect(button).toBeDisabled();
+		expect(button).toHaveAttribute('aria-hidden', 'true');
+		expect(badge).not.toHaveAttribute('aria-hidden');
+		expect(button.parentElement).toBe(badge.parentElement);
 	});
 });
 
@@ -249,5 +295,16 @@ describe('PlayersList bankruptcy badge', () => {
 		render(PlayersList, { game: state, me: me() });
 
 		expect(screen.getByText('pleite')).toHaveAttribute('title', 'Aus dem Spiel ausgeschieden');
+	});
+});
+
+describe('PlayersList jail-card chip', () => {
+	it('titles the chip with Pannenhilfen and shows the count', () => {
+		const state = game();
+		state.players[0].jailCards = 2;
+
+		render(PlayersList, { game: state, me: me(), kickVotes: [], onVotekick: () => {} });
+
+		expect(screen.getByTitle('Pannenhilfen')).toHaveTextContent('2');
 	});
 });

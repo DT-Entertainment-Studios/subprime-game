@@ -95,3 +95,19 @@ describe('TradePanel startCounter', () => {
 		});
 	});
 });
+
+describe('TradePanel jail-card wording', () => {
+	it('renders the Pannenhilfe section and card labels', async () => {
+		const state = game();
+		state.players[0].jailCards = 2;
+		render(TradePanel, { game: state, me: state.players[0], onIntent: () => {} });
+
+		await fireEvent.click(screen.getByRole('combobox'));
+		await fireEvent.click(screen.getByRole('option', { name: 'Berta' }));
+
+		expect(screen.getByText('Pannenhilfen')).toBeInTheDocument();
+		expect(screen.getAllByTitle('Pannenhilfe').length).toBeGreaterThan(0);
+		expect(screen.getByText('Pannenhilfe 1')).toBeInTheDocument();
+		expect(screen.getByText('Pannenhilfe 2')).toBeInTheDocument();
+	});
+});

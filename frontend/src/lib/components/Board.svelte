@@ -269,17 +269,37 @@
 							Hypothekiere oder verkaufe Felder, bis dein Geldbestand nicht mehr negativ ist.
 							Bauen ist währenddessen nicht möglich.
 						</p>
-						{#if confirmGiveUp}
-							<p class="warning">
-								Wirklich aufgeben? Du scheidest endgültig aus dem Spiel aus und verlierst.
-							</p>
-							<div class="row">
-								<button class="plain" onclick={() => (confirmGiveUp = false)}>Abbrechen</button>
-								<button class="primary danger" onclick={giveUp}>Ja, aufgeben</button>
-							</div>
-						{:else}
-							<button class="plain danger" onclick={() => (confirmGiveUp = true)}>Aufgeben</button>
-						{/if}
+						<!-- The warning keeps its vertical space; the buttons share two grid
+						     tracks so the swap reserves only the width of the real states. -->
+						<p class="warning" class:slot-hidden={!confirmGiveUp} aria-hidden={confirmGiveUp ? undefined : 'true'}>
+							Wirklich aufgeben? Du scheidest endgültig aus dem Spiel aus und verlierst.
+						</p>
+						<div class="debt-actions">
+							<button
+								class="plain danger toggle"
+								class:slot-hidden={confirmGiveUp}
+								disabled={confirmGiveUp}
+								aria-hidden={confirmGiveUp ? 'true' : undefined}
+								tabindex={confirmGiveUp ? -1 : undefined}
+								onclick={() => (confirmGiveUp = true)}>Aufgeben</button
+							>
+							<button
+								class="plain toggle"
+								class:slot-hidden={!confirmGiveUp}
+								disabled={!confirmGiveUp}
+								aria-hidden={confirmGiveUp ? undefined : 'true'}
+								tabindex={confirmGiveUp ? undefined : -1}
+								onclick={() => (confirmGiveUp = false)}>Abbrechen</button
+							>
+							<button
+								class="primary danger confirm"
+								class:slot-hidden={!confirmGiveUp}
+								disabled={!confirmGiveUp}
+								aria-hidden={confirmGiveUp ? undefined : 'true'}
+								tabindex={confirmGiveUp ? undefined : -1}
+								onclick={giveUp}>Ja, aufgeben</button
+							>
+						</div>
 					{:else}
 						<p class="muted">{debtor?.name ?? current?.name ?? 'Ein Spieler'} muss Schulden begleichen …</p>
 						<p class="muted">Das Spiel ist blockiert, bis die Schulden beglichen sind.</p>
@@ -510,6 +530,28 @@
 	.bid-submit {
 		min-height: 3rem;
 		padding-inline: 1.25rem;
+	}
+
+	.slot-hidden {
+		visibility: hidden;
+	}
+
+	/* Track 1 overlays the mutually exclusive toggle buttons, track 2 the
+	   confirmation. This reserves the width of the real two-button state only. */
+	.debt-actions {
+		display: grid;
+		grid-template-columns: auto auto;
+		align-items: center;
+		justify-content: start;
+		gap: 0.5rem;
+	}
+
+	.debt-actions .toggle {
+		grid-area: 1 / 1;
+	}
+
+	.debt-actions .confirm {
+		grid-area: 1 / 2;
 	}
 
 	.danger {

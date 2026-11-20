@@ -117,6 +117,42 @@ describe('LobbyInvites', () => {
 		expect(screen.queryByText('einem anderen Spieler')).toBeNull();
 	});
 
+	it('keeps the invite button and badge in one stable slot', () => {
+		render(LobbyInvites, {
+			room: room(),
+			online: online({ userId: 'ben', name: 'Ben' }),
+			sent: sent(invite('inv-1', 'ben', 'Ben', 'host')),
+			error: null,
+			...handlers
+		});
+
+		const ben = within(card('In der Lobby online')).getByText('Ben').closest('li') as HTMLElement;
+		const button = within(ben).getByText('Einladen');
+		const badge = within(ben).getByText('eingeladen');
+		expect(button).toHaveAttribute('aria-hidden', 'true');
+		expect(button).toBeDisabled();
+		expect(badge).not.toHaveAttribute('aria-hidden');
+		expect(button.parentElement).toBe(badge.parentElement);
+		expect(button.parentElement).toHaveClass('invite-slot');
+	});
+
+	it('keeps the sender text and cancel button in one stable slot', () => {
+		render(LobbyInvites, {
+			room: room(),
+			online: online(),
+			sent: sent(invite('inv-1', 'ben', 'Ben', 'host')),
+			error: null,
+			...handlers
+		});
+
+		const ben = screen.getByText('Ben').closest('li') as HTMLElement;
+		const sender = within(ben).getByText(/^von /);
+		const cancel = within(ben).getByText('Abbrechen');
+		expect(sender).toHaveAttribute('aria-hidden', 'true');
+		expect(cancel).not.toHaveAttribute('aria-hidden');
+		expect(sender.parentElement).toBe(cancel.parentElement);
+	});
+
 	it('gives repeated buttons contextual accessible names', () => {
 		render(LobbyInvites, {
 			room: room(),
@@ -151,7 +187,8 @@ describe('LobbyInvites', () => {
 		expect(screen.getByRole('heading', { name: 'Gesendete Einladungen' })).toBeInTheDocument();
 
 		const own = screen.getByText('Ben').closest('li')!;
-		expect(within(own).queryByText(/^von /)).toBeNull();
+		// The sender text stays mounted in its slot but is hidden from assistive tech.
+		expect(within(own).getByText(/^von /)).toHaveAttribute('aria-hidden', 'true');
 		await fireEvent.click(within(own).getByRole('button', { name: 'Einladung an Ben abbrechen' }));
 		expect(onCancel).toHaveBeenCalledWith('inv-1');
 

@@ -144,9 +144,17 @@
 			<span class="badge">{Math.round(preferences.current.zoom * 100)}%</span>
 			<button class="plain" aria-label="Vergrößern" onclick={() => adjustZoom(0.1)}>+</button>
 			<ThemeToggle />
-			{#if game}
-				<ForfeitButton phase={game.phase} turnPhase={game.turnPhase} {isMyTurn} {me} onIntent={send} />
-			{/if}
+			<!-- Mounted in every state so the trigger reserves the slot and "Verlassen"
+			     never jumps. The Lobby hides and disables it while its slot stays
+			     reserved. Fallback props keep it disabled while there is no game. -->
+			<ForfeitButton
+				phase={game?.phase ?? 'finished'}
+				turnPhase={game?.turnPhase ?? 'finished'}
+				{isMyTurn}
+				{me}
+				hidden={room?.phase === 'lobby'}
+				onIntent={send}
+			/>
 			{#if room}
 				<button class="plain" onclick={leave} disabled={leaving} aria-busy={leaving}>
 					{leaving ? 'Verlassen …' : 'Verlassen'}

@@ -39,7 +39,7 @@ const INELIGIBLE: TurnPhase[] = ['awaiting_debt', 'auction', 'finished'];
 
 describe('ForfeitButton', () => {
 	// Regression guard: the debt phase has its own give-up panel and blocks the
-	// whole game, so the voluntary topbar forfeit must never appear there.
+	// whole game, so the voluntary topbar forfeit stays visible but disabled there.
 	it('never offers a forfeit during the debt phase', () => {
 		render(ForfeitButton, {
 			phase: 'playing',
@@ -49,7 +49,8 @@ describe('ForfeitButton', () => {
 			onIntent: () => {}
 		});
 
-		expect(forfeitTrigger()).toBeNull();
+		const trigger = screen.getByRole('button', { name: 'Aufgeben' });
+		expect(trigger).toBeDisabled();
 		expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 	});
 
@@ -65,7 +66,7 @@ describe('ForfeitButton', () => {
 		expect(forfeitTrigger()).not.toBeNull();
 	});
 
-	it.each(INELIGIBLE)('stays hidden in phase %s', (turnPhase) => {
+	it.each(INELIGIBLE)('stays visible but disabled in phase %s', (turnPhase) => {
 		render(ForfeitButton, {
 			phase: 'playing',
 			turnPhase,
@@ -74,10 +75,11 @@ describe('ForfeitButton', () => {
 			onIntent: () => {}
 		});
 
-		expect(forfeitTrigger()).toBeNull();
+		const trigger = screen.getByRole('button', { name: 'Aufgeben' });
+		expect(trigger).toBeDisabled();
 	});
 
-	it('stays hidden once the game is finished', () => {
+	it('keeps a visible, disabled trigger in the DOM when ineligible', () => {
 		render(ForfeitButton, {
 			phase: 'finished',
 			turnPhase: 'awaiting_roll',
@@ -86,10 +88,27 @@ describe('ForfeitButton', () => {
 			onIntent: () => {}
 		});
 
-		expect(forfeitTrigger()).toBeNull();
+		const trigger = screen.getByRole('button', { name: 'Aufgeben' });
+		expect(trigger).toBeDisabled();
+		expect(trigger).not.toHaveAttribute('aria-hidden');
+		expect(trigger).not.toHaveAttribute('tabindex');
+		expect(trigger).not.toHaveClass('slot-hidden');
 	});
 
-	it('stays hidden when it is not the viewer’s turn', () => {
+	it('stays visible but disabled once the game is finished', () => {
+		render(ForfeitButton, {
+			phase: 'finished',
+			turnPhase: 'awaiting_roll',
+			isMyTurn: true,
+			me: player(),
+			onIntent: () => {}
+		});
+
+		const trigger = screen.getByRole('button', { name: 'Aufgeben' });
+		expect(trigger).toBeDisabled();
+	});
+
+	it('stays visible but disabled when it is not the viewer’s turn', () => {
 		render(ForfeitButton, {
 			phase: 'playing',
 			turnPhase: 'awaiting_roll',
@@ -98,10 +117,11 @@ describe('ForfeitButton', () => {
 			onIntent: () => {}
 		});
 
-		expect(forfeitTrigger()).toBeNull();
+		const trigger = screen.getByRole('button', { name: 'Aufgeben' });
+		expect(trigger).toBeDisabled();
 	});
 
-	it('stays hidden for a spectator without a player', () => {
+	it('stays visible but disabled for a spectator without a player', () => {
 		render(ForfeitButton, {
 			phase: 'playing',
 			turnPhase: 'awaiting_roll',
@@ -110,10 +130,11 @@ describe('ForfeitButton', () => {
 			onIntent: () => {}
 		});
 
-		expect(forfeitTrigger()).toBeNull();
+		const trigger = screen.getByRole('button', { name: 'Aufgeben' });
+		expect(trigger).toBeDisabled();
 	});
 
-	it('stays hidden for an already eliminated player', () => {
+	it('stays visible but disabled for an already eliminated player', () => {
 		render(ForfeitButton, {
 			phase: 'playing',
 			turnPhase: 'awaiting_roll',
@@ -122,7 +143,8 @@ describe('ForfeitButton', () => {
 			onIntent: () => {}
 		});
 
-		expect(forfeitTrigger()).toBeNull();
+		const trigger = screen.getByRole('button', { name: 'Aufgeben' });
+		expect(trigger).toBeDisabled();
 	});
 
 	it('asks for confirmation before sending the intent', async () => {
@@ -303,5 +325,43 @@ describe('ForfeitButton', () => {
 		await fireEvent.click(screen.getByRole('button', { name: 'Aufgeben' }));
 
 		expect(screen.getByRole('dialog').textContent).not.toContain('Kaufangebot');
+	});
+
+	it('hides the trigger in a reserved slot when hidden', () => {
+		const { container } = render(ForfeitButton, {
+			phase: 'playing',
+			turnPhase: 'awaiting_roll',
+			isMyTurn: true,
+			me: player(),
+			hidden: true,
+			onIntent: () => {}
+		});
+
+		// Deliberately an otherwise eligible config: this proves `hidden` alone
+		// disables the trigger. aria-hidden also removes it from role queries,
+		// so query the DOM directly.
+		const trigger = container.querySelector('button');
+		expect(trigger).not.toBeNull();
+		expect(trigger).toHaveClass('slot-hidden');
+		expect(trigger).toHaveAttribute('aria-hidden', 'true');
+		expect(trigger).toHaveAttribute('tabindex', '-1');
+		expect(trigger).toBeDisabled();
+		expect(screen.queryByRole('button', { name: 'Aufgeben' })).toBeNull();
+	});
+
+	it('keeps an eligible trigger visible and enabled by default', () => {
+		render(ForfeitButton, {
+			phase: 'playing',
+			turnPhase: 'awaiting_roll',
+			isMyTurn: true,
+			me: player(),
+			onIntent: () => {}
+		});
+
+		const trigger = screen.getByRole('button', { name: 'Aufgeben' });
+		expect(trigger).toBeEnabled();
+		expect(trigger).not.toHaveClass('slot-hidden');
+		expect(trigger).not.toHaveAttribute('aria-hidden');
+		expect(trigger).not.toHaveAttribute('tabindex');
 	});
 });

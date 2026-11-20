@@ -133,6 +133,49 @@ describe('Board', () => {
 		expect(screen.getByRole('button', { name: 'Pannenhilfe verwenden' })).toBeInTheDocument();
 	});
 
+	it('keeps the debt confirmation in two reserved grid tracks', async () => {
+		const state = game();
+		state.turnPhase = 'awaiting_debt';
+		state.players[0].cash = -50;
+		const onIntent = vi.fn();
+		render(Board, {
+			game: state,
+			isMyTurn: true,
+			isDebtor: true,
+			debtor: state.players[0],
+			me: state.players[0],
+			onIntent
+		});
+
+		const trigger = screen.getByRole('button', { name: 'Aufgeben' });
+		const cancel = screen.getByText('Abbrechen');
+		const confirm = screen.getByText('Ja, aufgeben');
+		const warning = screen.getByText(/Wirklich aufgeben\?/);
+		expect(trigger).not.toHaveClass('slot-hidden');
+		expect(trigger).toHaveClass('toggle');
+		expect(cancel).toHaveClass('slot-hidden', 'toggle');
+		expect(cancel).toBeDisabled();
+		expect(cancel).toHaveAttribute('aria-hidden', 'true');
+		expect(cancel).toHaveAttribute('tabindex', '-1');
+		expect(confirm).toHaveClass('slot-hidden', 'confirm');
+		expect(confirm).toBeDisabled();
+		expect(warning).toHaveAttribute('aria-hidden', 'true');
+		// Track 1 overlays the toggle buttons; track 2 holds the confirmation.
+		expect(trigger.parentElement).toBe(cancel.parentElement);
+		expect(cancel.parentElement).toBe(confirm.parentElement);
+		expect(trigger.parentElement).toHaveClass('debt-actions');
+
+		await fireEvent.click(trigger);
+
+		expect(screen.queryByRole('button', { name: 'Aufgeben' })).toBeNull();
+		expect(screen.getByRole('button', { name: 'Abbrechen' })).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: 'Ja, aufgeben' })).toBeInTheDocument();
+		expect(warning).not.toHaveAttribute('aria-hidden');
+
+		await fireEvent.click(screen.getByRole('button', { name: 'Ja, aufgeben' }));
+		expect(onIntent).toHaveBeenCalledWith({ type: 'give_up' });
+	});
+
 	it('bids in 20-steps with separate minus and plus buttons', async () => {
 		const state = game();
 		state.auction = {

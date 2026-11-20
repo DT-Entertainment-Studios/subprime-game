@@ -51,20 +51,29 @@
 				{#if player.inJail}<span title="In der Werkstatt"><IconTool size={14} /></span>{/if}
 				{#if player.jailCards > 0}<span title="Pannenhilfen"><IconTicket size={14} />{player.jailCards}</span>{/if}
 				{#if !player.connected}<span title="Getrennt"><IconWifiOff size={14} /></span>{/if}
+				<!-- Only rows that can ever vote reserve the slot; the two states
+				     overlay each other so a cast vote never changes its width. -->
 				{#if canVote}
-					{#if vote?.voted}
-						<span class="badge" title="Du hast für einen Votekick gestimmt"
-							>Votekick {vote?.votes ?? 0}/{needed} · abgestimmt</span
+					<span class="vote-slot">
+						<span
+							class="badge"
+							class:slot-hidden={!vote?.voted}
+							aria-hidden={vote?.voted ? undefined : 'true'}
+							title="Du hast für einen Votekick gestimmt"
+						>Votekick {vote?.votes ?? 0}/{needed} · abgestimmt</span
 						>
-					{:else}
 						<button
 							class="plain vote"
 							type="button"
+							class:slot-hidden={!!vote?.voted}
+							disabled={!!vote?.voted}
+							aria-hidden={vote?.voted ? 'true' : undefined}
+							tabindex={vote?.voted ? -1 : undefined}
 							aria-label="Votekick gegen {player.name}"
 							title="Votekick gegen {player.name} starten"
 							onclick={() => onVotekick?.(player.id)}>Votekick {vote?.votes ?? 0}/{needed}</button
 						>
-					{/if}
+					</span>
 				{/if}
 				{#if player.bankrupt}<span class="badge" title={bust ? bankruptcyTooltip(bust) : 'Aus dem Spiel ausgeschieden'}>pleite</span>{/if}
 			</span>
@@ -147,6 +156,21 @@
 		font-size: 11px;                                /* label-small, tokens.css:176 */
 		line-height: 16px;
 		white-space: nowrap;
+	}
+
+	/* Both vote states share one grid cell; the widest one fixes the slot width. */
+	.figures .vote-slot {
+		display: inline-grid;
+		align-items: center;
+		justify-items: start;
+	}
+
+	.figures .vote-slot > * {
+		grid-area: 1 / 1;
+	}
+
+	.slot-hidden {
+		visibility: hidden;
 	}
 
 	.cash {

@@ -13,13 +13,15 @@
 		turnPhase,
 		isMyTurn,
 		me,
-		onIntent
+		onIntent,
+		hidden = false
 	}: {
 		phase: Phase;
 		turnPhase: TurnPhase;
 		isMyTurn: boolean;
 		me: Player | null;
 		onIntent: (intent: Intent) => void;
+		hidden?: boolean;
 	} = $props();
 
 	// Mirrors the whitelist of the engine's Game.Forfeit (Spec.md §4.10): a running
@@ -82,9 +84,16 @@
 	}
 </script>
 
-{#if canForfeit}
-	<button class="plain danger" onclick={open}>Aufgeben</button>
-{/if}
+<!-- Always mounted so the trigger reserves its slot next to "Verlassen".
+     The Lobby hides and disables it, removing it from view and the a11y tree;
+     in-game states keep it visible, disabled iff !canForfeit, in the a11y tree. -->
+<button
+	class="plain danger"
+	class:slot-hidden={hidden}
+	disabled={hidden || !canForfeit}
+	aria-hidden={hidden ? 'true' : undefined}
+	tabindex={hidden ? -1 : undefined}
+	onclick={open}>Aufgeben</button>
 
 {#if confirming}
 	<!-- The backdrop only closes on click; keyboard users close with Escape or
@@ -125,6 +134,10 @@
 	.danger {
 		color: var(--md-sys-color-error);
 		border-color: var(--md-sys-color-error);
+	}
+
+	.slot-hidden {
+		visibility: hidden;
 	}
 
 	.primary.danger {
