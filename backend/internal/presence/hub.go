@@ -1,7 +1,7 @@
 package presence
 
 import (
-	crand "crypto/rand"
+	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -142,7 +142,7 @@ func NewHub(dir *room.Manager) *Hub {
 // is reported instead of producing an identifier every invitation would share.
 func newID() (string, error) {
 	var b [8]byte
-	if _, err := crand.Read(b[:]); err != nil {
+	if _, err := rand.Read(b[:]); err != nil {
 		return "", err
 	}
 	return hex.EncodeToString(b[:]), nil

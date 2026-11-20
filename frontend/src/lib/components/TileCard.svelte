@@ -161,7 +161,7 @@
 		if (!utility) return `10 % der Miete fließen an das ${utilityName}.`;
 		const utilityOwner = game.tiles[utility.index].owner;
 		if (utilityOwner < 0 || !game.players[utilityOwner]) {
-			return `10 % der Miete fließen an die Bank (das ${utilityName} ist unverkauft).`;
+			return `Das ${utilityName} ist unverkauft — es fließt kein Nutzungsanteil ab, der Straßenbesitzer behält die volle Miete.`;
 		}
 		if (owner && utilityOwner === owner.seat) {
 			return `${owner.name} besitzt beide Werke — der Nutzungsanteil fließt nicht ab.`;

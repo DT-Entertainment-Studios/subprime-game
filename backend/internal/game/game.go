@@ -5,10 +5,10 @@ package game
 
 import (
 	"fmt"
-	"math/rand"
 	"time"
 
 	"github.com/DT-Entertainment-Studios/subprime-game/backend/internal/board"
+	"github.com/DT-Entertainment-Studios/subprime-game/backend/internal/rng"
 )
 
 // Phase is the coarse lifecycle of a game.
@@ -160,9 +160,10 @@ type DeckState struct {
 	Draw []string
 }
 
-// Options configures a game; zero values use production defaults.
+// Options configures a game; zero values use production defaults. Production
+// randomness comes from crypto/rand.
 type Options struct {
-	Rand  *rand.Rand
+	Rand  rng.Random
 	Now   func() time.Time
 	Rules Rules
 }
@@ -193,7 +194,7 @@ type Game struct {
 	eventSeq  int
 	now       time.Time
 
-	rand            *rand.Rand
+	rand            rng.Random
 	clock           func() time.Time
 	dice            func() (int, int)
 	auctionDuration time.Duration
@@ -211,9 +212,9 @@ func New(cat *board.Catalog, players []*Player, opts Options) (*Game, error) {
 	if len(players) < rules.MinPlayers || len(players) > rules.MaxPlayers {
 		return nil, fmt.Errorf("need %d-%d players, got %d", rules.MinPlayers, rules.MaxPlayers, len(players))
 	}
-	rng := opts.Rand
-	if rng == nil {
-		rng = rand.New(rand.NewSource(time.Now().UnixNano()))
+	random := opts.Rand
+	if random == nil {
+		random = rng.New()
 	}
 	clock := opts.Now
 	if clock == nil {
@@ -229,7 +230,7 @@ func New(cat *board.Catalog, players []*Player, opts Options) (*Game, error) {
 		TurnPhase:       TurnAwaitingRoll,
 		Winner:          -1,
 		Decks:           map[board.Deck]*DeckState{},
-		rand:            rng,
+		rand:            random,
 		clock:           clock,
 		auctionDuration: time.Duration(rules.AuctionSeconds) * time.Second,
 	}

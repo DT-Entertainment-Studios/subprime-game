@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { AutopilotJail, AutopilotSettings, GameState, Intent, Player } from '#lib/types';
 	import { autopilotStopLabel, groupColor, groupLabel, STREET_GROUPS } from '#lib/format';
+	import { preferences } from '#lib/prefs.svelte';
 
 	const DEFAULTS: AutopilotSettings = {
 		enabled: false,
@@ -137,6 +138,21 @@
 		/>
 		<span>Immer kaufen</span>
 	</label>
+
+	<label class="check" for="autopilot-hide-cards">
+		<input
+			id="autopilot-hide-cards"
+			type="checkbox"
+			checked={preferences.current.hideCards}
+			disabled={me.bankrupt}
+			aria-describedby="autopilot-hide-cards-hint"
+			onchange={(event) => preferences.update({ hideCards: event.currentTarget.checked })}
+		/>
+		<span>Keine Karten anzeigen</span>
+	</label>
+	<p id="autopilot-hide-cards-hint" class="muted hint">
+		Nur Ereignis- und Gemeinschaftskarten, und nur solange der Autopilot aktiv ist.
+	</p>
 
 	<fieldset>
 		<legend>Werkstatt</legend>

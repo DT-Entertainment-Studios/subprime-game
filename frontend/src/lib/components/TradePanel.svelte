@@ -129,8 +129,8 @@
 		if (!other || other.bankrupt) return;
 		// I get what I was originally offered and give what was requested of me.
 		const iWasTarget = trade.to === me.seat;
-		const myTileList = iWasTarget ? trade.requestTiles : trade.offerTiles;
-		const theirTileList = iWasTarget ? trade.offerTiles : trade.requestTiles;
+		const myTileList = (iWasTarget ? trade.requestTiles : trade.offerTiles) ?? [];
+		const theirTileList = (iWasTarget ? trade.offerTiles : trade.requestTiles) ?? [];
 
 		clearForm();
 		partnerSeat = other.seat;

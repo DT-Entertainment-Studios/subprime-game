@@ -9,6 +9,7 @@ import (
 
 	"github.com/DT-Entertainment-Studios/subprime-game/backend/internal/board"
 	"github.com/DT-Entertainment-Studios/subprime-game/backend/internal/game"
+	"github.com/DT-Entertainment-Studios/subprime-game/backend/internal/rng"
 )
 
 func newTestManager(t *testing.T) *Manager {
@@ -19,8 +20,23 @@ func newTestManager(t *testing.T) *Manager {
 	}
 	m := NewManager(cat)
 	m.now = func() time.Time { return time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC) }
-	m.seed = func() *rand.Rand { return rand.New(rand.NewSource(1)) }
+	m.newRandom = func() rng.Random { return rand.New(rand.NewSource(1)) }
 	return m
+}
+
+func TestNewManagerDefaultsToCryptoRand(t *testing.T) {
+	cat, err := board.New()
+	if err != nil {
+		t.Fatalf("board.New() error = %v", err)
+	}
+	m := NewManager(cat)
+	random := m.newRandom()
+	if random == nil {
+		t.Fatal("NewManager() default rng is nil")
+	}
+	if _, ok := random.(rng.Crypto); !ok {
+		t.Fatalf("NewManager() default rng = %T, want rng.Crypto", random)
+	}
 }
 
 func TestCreateRoomCode(t *testing.T) {

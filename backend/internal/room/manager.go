@@ -1,39 +1,31 @@
 package room
 
 import (
-	crand "crypto/rand"
-	"encoding/binary"
-	"math/rand"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/DT-Entertainment-Studios/subprime-game/backend/internal/board"
+	"github.com/DT-Entertainment-Studios/subprime-game/backend/internal/rng"
 )
 
 // Manager owns all rooms.
 type Manager struct {
-	mu    sync.Mutex
-	rooms map[string]*Room
-	cat   *board.Catalog
-	now   func() time.Time
-	seed  func() *rand.Rand
+	mu        sync.Mutex
+	rooms     map[string]*Room
+	cat       *board.Catalog
+	now       func() time.Time
+	newRandom func() rng.Random
 }
 
 // NewManager creates a room manager.
 func NewManager(cat *board.Catalog) *Manager {
 	return &Manager{
-		rooms: map[string]*Room{},
-		cat:   cat,
-		now:   time.Now,
-		seed:  secureRand,
+		rooms:     map[string]*Room{},
+		cat:       cat,
+		now:       time.Now,
+		newRandom: rng.New,
 	}
-}
-
-func secureRand() *rand.Rand {
-	var b [8]byte
-	_, _ = crand.Read(b[:])
-	return rand.New(rand.NewSource(int64(binary.LittleEndian.Uint64(b[:]))))
 }
 
 // Create creates a new lobby with the host as first member. A user who still
@@ -59,7 +51,7 @@ func (m *Manager) Create(hostID, name, color string) (*Room, error) {
 	if code == "" {
 		return nil, &Error{Status: 500, Code: "internal", Message: "Kein freier Raumcode verfügbar."}
 	}
-	r := newRoom(code, m.cat, m.now, m.seed)
+	r := newRoom(code, m.cat, m.now, m.newRandom)
 	r.addHostLocked(hostID, name, color)
 	m.rooms[code] = r
 	return r, nil

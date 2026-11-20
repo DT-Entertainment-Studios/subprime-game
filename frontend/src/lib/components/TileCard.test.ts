@@ -10,6 +10,7 @@ const board = [
 	{ index: 1, name: 'Zollgasse', type: 'street', group: 'braun', price: 60, rents: RENTS_STREET, build: 50, sell: 42 },
 	{ index: 2, name: 'Münzgasse', type: 'street', group: 'braun', price: 60, rents: [4, 20, 60, 180, 320, 450], build: 50, sell: 42 },
 	{ index: 4, name: 'Einkommensteuer', type: 'tax', taxPercent: 10 },
+	{ index: 11, name: 'Gartenstraße', type: 'street', group: 'rosa', price: 120, rents: [4, 20, 60, 180, 320, 450], build: 60, sell: 50 },
 	{ index: 5, name: 'Tankstelle Süd', type: 'tankstelle', group: 'tankstelle', price: 200, rents: [25, 50, 100, 200], sell: 140 },
 	{ index: 7, name: 'Ereignisfeld', type: 'chance' },
 	{ index: 12, name: 'Elektrizitätswerk', type: 'utility', group: 'versorger', price: 150, sell: 105 },
@@ -158,5 +159,12 @@ describe('TileCard', () => {
 	it('mentions the chance card deck rule on chance fields', () => {
 		render(TileCard, propsFor(7, tileState(7)));
 		expect(screen.getByText(/Ereigniskarte/)).toBeInTheDocument();
+	});
+
+	it('shows no share hint and full rent when the matching utility is unowned', () => {
+		render(TileCard, propsFor(11, tileState(11, { owner: 0 }), player(0, 'Anton')));
+		expect(screen.getByText(/unverkauft/)).toHaveTextContent(/kein Nutzungsanteil/);
+		expect(screen.getByText(/volle Miete/)).toBeInTheDocument();
+		expect(screen.queryByText(/fließen an die Bank/)).toBeNull();
 	});
 });

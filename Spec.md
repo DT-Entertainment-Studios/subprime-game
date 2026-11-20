@@ -392,11 +392,12 @@ the client shows. There are no silent fallbacks.
     **10 %** (rounded down) of the collected rent to the owner of the **Wasserwerk**.
   - The share is never paid to the property owner themselves: if the property owner also
     owns the utility, no transfer happens.
-  - If the utility tile is unowned, the share goes to the bank.
-  - **Rounding**: a fractional share is rounded down when both parties are players, and
-    rounded up (against the property owner) when the receiving side is the bank — the
-    general Subprime rule "amounts that cannot be paid out are always rounded against
-    the player; if only players are affected, round down".
+  - If the matching utility tile is unowned, no share is paid at all — the street owner
+    keeps the full rent.
+  - **No share when the matching utility is mortgaged or its owner sits in jail
+    (Werkstatt)**: in either case the street owner keeps the full rent and no share is
+    paid at all.
+  - **Rounding**: a fractional share is rounded down when paid from one player to another.
   - The share is computed on the rent actually collected — including a doubled unbuilt
     rent or a hotel rent — and paid out of that amount.
 
@@ -413,6 +414,7 @@ the client shows. There are no silent fallbacks.
   the group's streets (houses 0–4, a hotel counts as five) may differ by at most 1.
   Levels 2/2/1 are allowed, and so is a hotel on one street next to streets with four
   houses (5/4/4); 3/1/1 and a hotel next to streets with three houses (5/3/3) are not.
+  This applies for building and selling.
 - Building happens in the pre-turn window (4.2), never while a move is pending.
 - Houses/hotels can be sold back to the bank at half the build price each (a hotel for
   `floor(buildCost / 2)`, see above).
@@ -551,6 +553,9 @@ the client shows. There are no silent fallbacks.
   changes a seat.
 - The event log records every game event in order, with amounts and the acting player;
   it is the authoritative history of the game and is shown in a scrollable panel.
+  Newest events are listed at the top. A reader who is scrolled to the top keeps
+  following new events automatically; a reader who scrolled further down keeps their
+  viewport in place when new events arrive.
 - There is **no chat** — not in v1.0 and not later. The players talk over a voice call;
   the event log is the record.
 
@@ -572,7 +577,7 @@ The following are fixed for v1.0 and shown in the lobby:
 | Rent in jail | owner collects no rent, tenant pays nothing |
 | Unbuilt rent with a complete color group | doubled (classic rule) |
 | Utility rent | 4× dice, 10× dice when both utilities are owned |
-| Utility share | 10 % of rosa/orange street rent to Elektrizitätswerk, 10 % (down) of rot/gelb street rent to Wasserwerk |
+| Utility share | 10 % of rosa/orange street rent to Elektrizitätswerk, 10 % (down) of rot/gelb street rent to Wasserwerk; no share if the matching utility is unowned, mortgaged or its owner is in jail (Werkstatt), the street owner keeps the full rent |
 | Mortgage | bank lends 50 %, unmortgage costs 60 %, only for a building-free group |
 | Selling to the bank | 70 % of the purchase price; a mortgaged property returns for 0 |
 | Buildings | levels within a group differ by at most 1; bank stock unlimited |
@@ -592,9 +597,13 @@ The following are fixed for v1.0 and shown in the lobby:
   closed.
 - **Settings**: stored per seat and per game, not persisted. `enabled` (default off),
   `buyAlways` (default on), `jail` (`none`/`pay`/`roll`, default `none`), `buildGroups`
-  (default empty) and `liquidity` (default 0, 0–100000 GE). Only the owner sees the full
-  settings; every other player and every spectator sees only whether the autopilot is
-  active.
+  (default empty) and `liquidity` (default 0, 0–100000 GE).
+  Only the owner sees the full settings; every other player and every spectator sees only
+  whether the autopilot is active.
+- **Card notices**: showing event- and community-card notices is a local browser setting and
+  not part of the autopilot configuration. It suppresses those notices only while the
+  autopilot of the viewer's own seat is active; it does not affect trade pop-ups, the
+  autopilot toast or the event log.
 - **Pacing**: at most one action every 0.8 s, driven server-side by the room tick through
   `Game.Tick(now)`. A new turn continues after the same interval.
 - **Rolling**: in `awaiting_roll` it rolls, including the follow-up roll after a double.
@@ -717,8 +726,9 @@ does dice rolls and money arithmetic, and broadcasts state changes.
   at least one effective vote — the target, the count of valid votes and whether the
   requesting viewer already voted.
 - `set_autopilot` carries the complete `autopilot` object (`enabled`, `buyAlways`,
-  `jail`, `buildGroups`, `liquidity`); it is idempotent, allowed out of turn and in every
-  turn phase for a seated player, and rejected for spectators. Every `PlayerView` carries
+  `jail`, `buildGroups`, `liquidity`); it is idempotent, allowed out of turn and
+  in every turn phase for a seated player, and rejected for spectators. The card-notice
+  display is a local browser setting and is not transmitted (§4.13). Every `PlayerView` carries
   `autopilot: {"active": bool, "config": {…}}`; `config` is only present in that seat's
   own snapshot — other players and spectators receive only `active`. Stops add a `reason`
   field to the `autopilot_off` event.
@@ -938,7 +948,8 @@ Why each open point was resolved the way it was.
   no extra turn.
 - **Utility share scope**: only the rent of the rosa/orange/rot/gelb streets flows to the
   Elektrizitätswerk / Wasserwerk — not the rent of the other color groups, Tankstellen or
-  utilities.
+  utilities. The share is also skipped entirely when the matching utility is unowned,
+  mortgaged or its owner is in jail (Werkstatt); the street owner keeps the full rent.
 - **Mortgage preconditions**: a property can only be mortgaged while its whole color group is
   free of buildings; a mortgaged property sold to the bank pays nothing (the mortgage is
   settled by the return).

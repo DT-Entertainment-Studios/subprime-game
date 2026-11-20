@@ -1,7 +1,8 @@
-import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, within } from '@testing-library/svelte';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, fireEvent, render, screen, within } from '@testing-library/svelte';
 import AutopilotPanel from './AutopilotPanel.svelte';
 import type { AutopilotSettings, GameEvent, GameState, Player } from '#lib/types';
+import { preferences } from '#lib/prefs.svelte';
 
 const board = [
 	{ index: 0, name: 'Los', type: 'go' },
@@ -135,6 +136,14 @@ function powerRow(): HTMLElement {
 	return screen.getByRole('switch', { name: 'Autopilot aktiv' }).closest('.power') as HTMLElement;
 }
 
+beforeEach(() => {
+	preferences.update({ hideCards: false });
+});
+
+afterEach(() => {
+	preferences.update({ hideCards: false });
+});
+
 describe('AutopilotPanel controls', () => {
 	it('renders the switch, buy, jail, build and liquidity controls', () => {
 		render(AutopilotPanel, { game: game(), me: me(), onIntent: vi.fn() });
@@ -144,6 +153,12 @@ describe('AutopilotPanel controls', () => {
 		expect(within(powerRow()).getByText('Aus')).toBeInTheDocument();
 		expect(within(powerRow()).getByText('Aus')).toHaveAttribute('aria-hidden', 'true');
 		expect(screen.getByLabelText('Immer kaufen')).toBeInTheDocument();
+		expect(screen.getByLabelText('Keine Karten anzeigen')).toBeInTheDocument();
+		expect(
+			screen.getByText(
+				'Nur Ereignis- und Gemeinschaftskarten, und nur solange der Autopilot aktiv ist.'
+			)
+		).toBeInTheDocument();
 		expect(screen.getByRole('radio', { name: 'Aus' })).toBeInTheDocument();
 		expect(screen.getByRole('radio', { name: 'Freikaufen' })).toBeInTheDocument();
 		expect(screen.getByRole('radio', { name: 'Pasch versuchen' })).toBeInTheDocument();
@@ -267,6 +282,56 @@ describe('AutopilotPanel intents', () => {
 				liquidity: 0
 			}
 		});
+	});
+
+	it('mirrors the hideCards preference in the checkbox', async () => {
+		render(AutopilotPanel, { game: game(), me: me(), onIntent: vi.fn() });
+
+		expect(screen.getByLabelText('Keine Karten anzeigen')).not.toBeChecked();
+
+		await act(async () => {
+			preferences.update({ hideCards: true });
+		});
+		expect(screen.getByLabelText('Keine Karten anzeigen')).toBeChecked();
+
+		await act(async () => {
+			preferences.update({ hideCards: false });
+		});
+		expect(screen.getByLabelText('Keine Karten anzeigen')).not.toBeChecked();
+	});
+
+	it('updates only the local preference when the checkbox changes', async () => {
+		const onIntent = vi.fn();
+		render(AutopilotPanel, { game: game(), me: me({}, { enabled: true }), onIntent });
+
+		await fireEvent.click(screen.getByLabelText('Keine Karten anzeigen'));
+
+		expect(screen.getByLabelText('Keine Karten anzeigen')).toBeChecked();
+		expect(preferences.current.hideCards).toBe(true);
+		expect(onIntent).not.toHaveBeenCalled();
+	});
+
+	it('keeps the checkbox checked across an autopilot toggle (AC1)', async () => {
+		const onIntent = vi.fn();
+		preferences.update({ hideCards: true });
+		const { rerender } = render(AutopilotPanel, { game: game(), me: me(), onIntent });
+
+		await fireEvent.click(screen.getByRole('switch', { name: 'Autopilot aktiv' }));
+
+		expect(onIntent).toHaveBeenCalledWith({
+			type: 'set_autopilot',
+			autopilot: {
+				enabled: true,
+				buyAlways: true,
+				jail: 'none',
+				buildGroups: [],
+				liquidity: 0
+			}
+		});
+
+		await rerender({ game: game(), me: me({}, { enabled: true }), onIntent });
+
+		expect(screen.getByLabelText('Keine Karten anzeigen')).toBeChecked();
 	});
 
 	it.each([
@@ -456,6 +521,7 @@ describe('AutopilotPanel bankrupt seat', () => {
 		expect(screen.getByLabelText('Autopilot aktiv')).toBeDisabled();
 		expect(screen.getByRole('switch', { name: 'Autopilot aktiv' })).toBeDisabled();
 		expect(screen.getByLabelText('Immer kaufen')).toBeDisabled();
+		expect(screen.getByLabelText('Keine Karten anzeigen')).toBeDisabled();
 		expect(screen.getByRole('radio', { name: 'Aus' })).toBeDisabled();
 		expect(screen.getByRole('radio', { name: 'Freikaufen' })).toBeDisabled();
 		expect(screen.getByRole('radio', { name: 'Pasch versuchen' })).toBeDisabled();

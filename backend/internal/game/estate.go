@@ -90,6 +90,15 @@ func (g *Game) SellBuilding(player, idx int) error {
 	if st.Houses == 0 {
 		return g.fail("no_building", "Auf diesem Feld steht kein Gebäude.")
 	}
+	maxLevel := 0
+	for _, other := range g.groupTiles(t.Group) {
+		if g.Tiles[other].Houses > maxLevel {
+			maxLevel = g.Tiles[other].Houses
+		}
+	}
+	if st.Houses < maxLevel {
+		return g.fail("even_sell", "Es muss gleichmäßig abgerissen werden.")
+	}
 	refund := t.Build / 2
 	if st.Houses == 5 {
 		st.Houses = 4

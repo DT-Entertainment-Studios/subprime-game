@@ -3,13 +3,51 @@
 	import { formatMoney, formatTime } from '#lib/format';
 
 	let { events }: { events: GameEvent[] } = $props();
+
+	// Newest first: the log renders the reverse of the arrival order.
+	const ordered = $derived([...events].reverse());
+	const newestSeq = $derived(events.length > 0 ? events[events.length - 1].seq : 0);
+
+	let log: HTMLDivElement | null = null;
+	// Follow the newest entry only while the reader sits at the top. Once they
+	// scrolled down, incoming entries must not move their viewport.
+	let atTop = true;
+	let seenSeq = 0;
+	let heightBefore = 0;
+	let topBefore = 0;
+
+	function handleScroll() {
+		if (!log) return;
+		atTop = log.scrollTop <= 2;
+	}
+
+	// Snapshot the scroll geometry before the new rows are in the DOM.
+	$effect.pre(() => {
+		if (newestSeq === seenSeq || !log) return;
+		heightBefore = log.scrollHeight;
+		topBefore = log.scrollTop;
+	});
+
+	// Effects run after Svelte updated the DOM, so the snapshot above and the
+	// scrollHeight read here belong to the same insertion.
+	$effect(() => {
+		if (newestSeq === seenSeq) return;
+		seenSeq = newestSeq;
+		if (!log) return;
+		if (atTop) {
+			log.scrollTop = 0;
+			return;
+		}
+		const grewBy = log.scrollHeight - heightBefore;
+		if (grewBy > 0) log.scrollTop = topBefore + grewBy;
+	});
 </script>
 
-<div class="log" aria-label="Ereignisprotokoll">
+<div class="log" aria-label="Ereignisprotokoll" bind:this={log} onscroll={handleScroll}>
 	{#if events.length === 0}
 		<p class="muted">Noch keine Ereignisse.</p>
 	{/if}
-	{#each events as event (event.seq)}
+	{#each ordered as event (event.seq)}
 		<div class="entry">
 			<span class="time">{formatTime(event.at)}</span>
 			<span class="text">{event.text}</span>
@@ -27,6 +65,7 @@
 		gap: 0.2rem;
 		max-height: 22rem;
 		overflow-y: auto;
+		overflow-anchor: none;                          /* scroll position is managed in the script */
 		font-size: 12px;                                /* body-small, tokens.css:173 */
 		line-height: 16px;
 	}
