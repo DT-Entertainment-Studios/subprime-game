@@ -123,6 +123,16 @@ describe('Board', () => {
 		expect(dialog.textContent).toContain('2 GE');
 	});
 
+	it('offers the Pannenhilfe action in the jail phase', () => {
+		const state = game();
+		state.turnPhase = 'awaiting_jail';
+		state.players[0].inJail = true;
+		state.players[0].jailCards = 1;
+		render(Board, { game: state, isMyTurn: true, isDebtor: false, me: state.players[0], onIntent: () => {} });
+
+		expect(screen.getByRole('button', { name: 'Pannenhilfe verwenden' })).toBeInTheDocument();
+	});
+
 	it('bids in 20-steps with separate minus and plus buttons', async () => {
 		const state = game();
 		state.auction = {

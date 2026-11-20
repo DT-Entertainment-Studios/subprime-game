@@ -67,7 +67,7 @@
 		}
 		const cards = game.players[seat]?.jailCards ?? 0;
 		if (cards > 0) {
-			result.push({ key: 'cards', label: 'Werkstattgutscheine', color: CARD_COLOR, icon: 'tool', tiles: [], cards });
+			result.push({ key: 'cards', label: 'Pannenhilfen', color: CARD_COLOR, icon: 'tool', tiles: [], cards });
 		}
 		return result;
 	}
@@ -280,8 +280,8 @@
 							<li>
 								<label class="check">
 									<input type="checkbox" checked={cardSelection.includes(slot)} onchange={() => toggleCard(target, slot)} />
-									<span class="badge icon small pass" title="Werkstattgutschein"><IconTool stroke={2} /></span>
-									<span class="check-label">Werkstattgutschein {section.cards > 1 ? slot + 1 : ''}</span>
+									<span class="badge icon small pass" title="Pannenhilfe"><IconTool stroke={2} /></span>
+									<span class="check-label">Pannenhilfe {section.cards > 1 ? slot + 1 : ''}</span>
 								</label>
 							</li>
 						{/each}

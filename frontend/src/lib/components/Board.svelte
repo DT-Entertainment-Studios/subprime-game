@@ -250,7 +250,7 @@
 							disabled={me.jailCards === 0}
 							onclick={() => onIntent({ type: 'jail_option', option: 'card' })}
 						>
-							Gutschein einlösen
+							Pannenhilfe verwenden
 						</button>
 						<button class="cta" onclick={() => onIntent({ type: 'jail_option', option: 'roll' })}>
 							Startversuch (Pasch)

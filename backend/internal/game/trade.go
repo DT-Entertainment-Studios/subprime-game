@@ -131,7 +131,7 @@ func (g *Game) validateTradeSide(player int, tiles []int, cash, cards int) error
 		}
 	}
 	if cards > len(g.Players[player].JailCards) {
-		return g.fail("invalid_trade", "So viele Werkstattgutscheine besitzt der Spieler nicht.")
+		return g.fail("invalid_trade", "So viele Pannenhilfen besitzt der Spieler nicht.")
 	}
 	if cash > 0 && cash > g.Players[player].Cash {
 		return g.fail("insufficient_cash", "So viel Bargeld besitzt der Spieler nicht.")

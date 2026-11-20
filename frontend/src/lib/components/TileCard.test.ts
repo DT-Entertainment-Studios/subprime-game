@@ -15,7 +15,8 @@ const board = [
 	{ index: 7, name: 'Ereignisfeld', type: 'chance' },
 	{ index: 12, name: 'Elektrizitätswerk', type: 'utility', group: 'versorger', price: 150, sell: 105 },
 	{ index: 15, name: 'Tankstelle West', type: 'tankstelle', group: 'tankstelle', price: 200, rents: [25, 50, 100, 200], sell: 140 },
-	{ index: 38, name: 'Zusatzsteuer', type: 'tax', tax: 100 }
+	{ index: 38, name: 'Zusatzsteuer', type: 'tax', tax: 100 },
+	{ index: 10, name: 'Werkstatt', type: 'jail' }
 ] as GameState['board'];
 
 function player(seat: number, name: string): Player {
@@ -161,6 +162,11 @@ describe('TileCard', () => {
 	it('mentions the chance card deck rule on chance fields', () => {
 		render(TileCard, propsFor(7, tileState(7)));
 		expect(screen.getByText(/Ereigniskarte/)).toBeInTheDocument();
+	});
+
+	it('mentions the Pannenhilfe escape on jail fields', () => {
+		render(TileCard, propsFor(10, tileState(10)));
+		expect(screen.getByText(/eine Pannenhilfe verwenden/)).toBeInTheDocument();
 	});
 
 	it('shows no share hint and full rent when the matching utility is unowned', () => {

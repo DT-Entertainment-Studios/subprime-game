@@ -317,7 +317,7 @@
 			<p class="hint">Wer Los überquert, zieht das Gehalt ({formatMoney(game.rules.losSalary)}) ein; beim Landen nur einmal, nie doppelt.</p>
 		{:else if tile.type === 'jail'}
 			<h3>Werkstatt</h3>
-			<p class="hint">Nach drei fehlgeschlagenen Versuchen müssen {formatMoney(game.rules.jailFine)} Reparaturkosten gezahlt werden. Auswege: Pasch würfeln, Kaution von {formatMoney(game.rules.jailFine)} zahlen oder einen Werkstatt-Gutschein einlösen. Fehlt das Geld, können vorher Hypotheken aufgenommen oder Felder verkauft werden. Besucher zahlen nichts.</p>
+			<p class="hint">Nach drei fehlgeschlagenen Versuchen müssen {formatMoney(game.rules.jailFine)} Reparaturkosten gezahlt werden. Auswege: Pasch würfeln, Kaution von {formatMoney(game.rules.jailFine)} zahlen oder eine Pannenhilfe verwenden. Fehlt das Geld, können vorher Hypotheken aufgenommen oder Felder verkauft werden. Besucher zahlen nichts.</p>
 		{:else if tile.type === 'gotojail'}
 			<h3>Unfall</h3>
 			<p class="hint">Wer hier landet oder dorthin geschickt wird, muss direkt in die Werkstatt — ohne Los-Gehalt.</p>

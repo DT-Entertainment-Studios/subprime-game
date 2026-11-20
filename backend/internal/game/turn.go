@@ -87,13 +87,13 @@ func (g *Game) JailOption(player int, option string) error {
 		g.normalRollAfterJail(player)
 	case JailOptionCard:
 		if len(p.JailCards) == 0 {
-			return g.fail("no_card", "Du hast keinen Werkstattgutschein.")
+			return g.fail("no_card", "Du hast keine Pannenhilfe.")
 		}
 		id := p.JailCards[0]
 		p.JailCards = p.JailCards[1:]
 		g.returnCardByID(id)
 		g.leaveJail(player)
-		g.logf("jail_exit", player, 0, "%s nutzt einen Werkstattgutschein.", p.Name)
+		g.logf("jail_exit", player, 0, "%s nutzt eine Pannenhilfe.", p.Name)
 		g.normalRollAfterJail(player)
 	default:
 		return g.fail("invalid_option", "Unbekannte Werkstatt-Option.")

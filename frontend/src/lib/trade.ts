@@ -51,7 +51,7 @@ export function tradeSideItems(
 	if (cards > 0) {
 		items.push({
 			kind: 'card',
-			label: cards === 1 ? '1 Werkstattgutschein' : `${cards} Werkstattgutscheine`,
+			label: cards === 1 ? '1 Pannenhilfe' : `${cards} Pannenhilfen`,
 			color: CARD_COLOR,
 			icon: 'tool',
 			title: 'Pannenhilfe — kommst gratis aus der Werkstatt'

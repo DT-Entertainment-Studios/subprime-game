@@ -56,7 +56,7 @@ func (g *Game) drawAndApply(player int, deck board.Deck, depth int) {
 	case board.EffectGetOutOfJail:
 		g.Players[player].JailCards = append(g.Players[player].JailCards, card.ID)
 		keep = true
-		g.logf("jail_card", player, 0, "%s behält den Werkstattgutschein.", g.Players[player].Name)
+		g.logf("jail_card", player, 0, "%s behält die Pannenhilfe.", g.Players[player].Name)
 	case board.EffectBankPayout:
 		g.credit(player, card.Amount)
 		g.logf("payout", player, card.Amount, "Die Bank zahlt %s %d GE.", g.Players[player].Name, card.Amount)

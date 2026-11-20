@@ -35,7 +35,7 @@ describe('tradeSideItems', () => {
 		}).not.toThrow();
 		expect(items.map((item) => item.kind)).toEqual(['cash', 'card']);
 		expect(items[0].label).toBe('10 GE');
-		expect(items[1].label).toBe('1 Werkstattgutschein');
+		expect(items[1].label).toBe('1 Pannenhilfe');
 	});
 
 	it('treats undefined tiles as an empty list', () => {

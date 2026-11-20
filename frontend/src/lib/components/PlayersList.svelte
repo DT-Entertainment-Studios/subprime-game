@@ -49,7 +49,7 @@
 			</span>
 			<span class="figures">
 				{#if player.inJail}<span title="In der Werkstatt"><IconTool size={14} /></span>{/if}
-				{#if player.jailCards > 0}<span title="Werkstattgutscheine"><IconTicket size={14} />{player.jailCards}</span>{/if}
+				{#if player.jailCards > 0}<span title="Pannenhilfen"><IconTicket size={14} />{player.jailCards}</span>{/if}
 				{#if !player.connected}<span title="Getrennt"><IconWifiOff size={14} /></span>{/if}
 				{#if canVote}
 					{#if vote?.voted}
