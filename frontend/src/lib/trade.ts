@@ -3,7 +3,7 @@
 // them the same way.
 
 import type { GameState } from './types';
-import { groupColor } from './format';
+import { formatMoney, groupColor } from './format';
 
 /** Marker colour for workshop passes, matching the Werkstatt field accent. */
 export const CARD_COLOR = '#a15c00';
@@ -42,7 +42,7 @@ export function tradeSideItems(
 	if (cash > 0) {
 		items.push({
 			kind: 'cash',
-			label: `${cash.toLocaleString('de-DE')} GE`,
+			label: formatMoney(cash),
 			color: CASH_COLOR,
 			icon: 'coin',
 			title: 'Bargeld'

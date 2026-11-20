@@ -16,10 +16,14 @@ import {
 } from './format';
 
 describe('formatMoney', () => {
-	it('formats German thousands and the GE unit', () => {
-		expect(formatMoney(1500)).toBe('1.500 GE');
+	it('formats German thousands with a narrow no-break space and the GE unit', () => {
+		expect(formatMoney(1500)).toBe('1\u202F500 GE');
 		expect(formatMoney(0)).toBe('0 GE');
 		expect(formatMoney(undefined)).toBe('–');
+	});
+
+	it('uses the same separator for negative amounts', () => {
+		expect(formatMoney(-1500)).toBe('-1\u202F500 GE');
 	});
 });
 

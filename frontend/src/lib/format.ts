@@ -7,7 +7,7 @@ const money = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 0 });
 /** Formats an amount of GE. */
 export function formatMoney(amount: number | undefined): string {
 	if (amount === undefined || amount === null) return '–';
-	return `${money.format(amount)} GE`;
+	return `${money.format(amount).replaceAll('.', '\u202F')} GE`;
 }
 
 /** Beleihungswert: the bank lends 50 % of the purchase price (a mortgaged

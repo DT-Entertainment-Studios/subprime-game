@@ -38,6 +38,12 @@ describe('tradeSideItems', () => {
 		expect(items[1].label).toBe('1 Pannenhilfe');
 	});
 
+	it('formats a grouped cash amount with the narrow no-break separator', () => {
+		const items = tradeSideItems(game(), null, 0, 1500);
+		expect(items.map((item) => item.kind)).toEqual(['cash']);
+		expect(items[0].label).toBe('1\u202F500 GE');
+	});
+
 	it('treats undefined tiles as an empty list', () => {
 		let items: TradeItem[] = [];
 		expect(() => {
