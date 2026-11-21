@@ -218,31 +218,26 @@
 							<span class="state">{stateLabel(state.houses, state.mortgaged)}</span>
 						</div>
 						<div class="actions">
-							{#if tile.build && !state.mortgaged && state.houses < 5}
-								<button class="plain" disabled={!canBuild(tile.index)} onclick={() => onIntent({ type: 'build', tile: tile.index })}>
+							{#if tile.build}
+								<button class="plain" disabled={state.mortgaged || state.houses >= 5 || !canBuild(tile.index)} onclick={() => onIntent({ type: 'build', tile: tile.index })}>
 									Bauen ({formatMoney(tile.build)})
 								</button>
-							{/if}
-							{#if state.houses > 0}
-								<button class="plain" disabled={!canSell(tile.index)} onclick={() => onIntent({ type: 'sell_building', tile: tile.index })}>
+								<button class="plain" disabled={state.houses === 0 || !canSell(tile.index)} onclick={() => onIntent({ type: 'sell_building', tile: tile.index })}>
 									Haus verkaufen
-								</button>
-							{/if}
-							{#if !state.mortgaged && state.houses === 0}
-								<button class="plain" disabled={!canMortgage(tile.index)} onclick={() => onIntent({ type: 'mortgage', tile: tile.index })}>
-									Hypothek ({formatMoney(mortgageValue(tile.price))})
 								</button>
 							{/if}
 							{#if state.mortgaged}
 								<button class="plain" disabled={!isMyTurn || me.cash < unmortgageCost(tile.price)} onclick={() => onIntent({ type: 'unmortgage', tile: tile.index })}>
 									Ablösen ({formatMoney(unmortgageCost(tile.price))})
 								</button>
-							{/if}
-							{#if state.houses === 0}
-								<button class="plain" disabled={!canSellToBank(tile.index)} onclick={() => (pendingSale = tile.index)}>
-									An Bank ({state.mortgaged ? '0 GE' : formatMoney(tile.sell)})
+							{:else}
+								<button class="plain" disabled={!canMortgage(tile.index)} onclick={() => onIntent({ type: 'mortgage', tile: tile.index })}>
+									Hypothek ({formatMoney(mortgageValue(tile.price))})
 								</button>
 							{/if}
+							<button class="plain" disabled={!canSellToBank(tile.index)} onclick={() => (pendingSale = tile.index)}>
+								An Bank ({state.mortgaged ? '0 GE' : formatMoney(tile.sell)})
+							</button>
 						</div>
 					</li>
 				{/each}

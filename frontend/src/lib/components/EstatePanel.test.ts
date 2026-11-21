@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/svelte';
+import { fireEvent, render, screen, within } from '@testing-library/svelte';
 import EstatePanel from './EstatePanel.svelte';
 import type { BoardTile, GameState, Player } from '#lib/types';
 
@@ -164,7 +164,10 @@ describe('EstatePanel', () => {
 			onIntent: () => {}
 		});
 
-		expect(screen.getByRole('button', { name: 'An Bank (42 GE)' })).toBeDisabled();
+		const buttons = screen.getAllByRole('button', { name: 'An Bank (42 GE)' });
+		expect(buttons).toHaveLength(2);
+		expect(buttons[0]).toBeDisabled();
+		expect(buttons[1]).toBeDisabled();
 	});
 
 	it('drops the bank-sale dialog when the color group becomes built', async () => {
@@ -228,7 +231,11 @@ describe('EstatePanel', () => {
 		});
 
 		expect(screen.getByRole('button', { name: 'Hypothek (50 GE)' })).toBeEnabled();
-		expect(screen.getByRole('button', { name: 'Haus verkaufen' })).toBeEnabled();
+		const sellButtons = screen.getAllByRole('button', { name: 'Haus verkaufen' });
+		expect(sellButtons).toHaveLength(3);
+		expect(sellButtons[0]).toBeEnabled(); // tile 1, the only house
+		expect(sellButtons[1]).toBeDisabled(); // tile 2
+		expect(sellButtons[2]).toBeDisabled(); // tile 3
 		// Main's building-free-group rule still applies to debtors: tile 2 shares
 		// the braun group with tile 1's house. The clean hellblau field can still be
 		// liquidated out of turn.
@@ -240,5 +247,63 @@ describe('EstatePanel', () => {
 		for (const button of buildButtons) expect(button).toBeDisabled();
 		expect(screen.getByRole('button', { name: /Ablösen/ })).toBeDisabled();
 		expect(screen.getByText(/darf Felder auch liquidieren/)).toBeInTheDocument();
+	});
+
+	it('keeps the action row in place when a field is mortgaged', async () => {
+		const { rerender } = render(EstatePanel, {
+			game: game(),
+			me: player(),
+			isMyTurn: true,
+			isDebtor: false,
+			onIntent: () => {}
+		});
+
+		// game() does not own the whole braun group, so canBuild(1) fails.
+		expect(screen.getByRole('button', { name: 'Bauen (50 GE)' })).toBeDisabled();
+		expect(screen.getByRole('button', { name: 'Hypothek (30 GE)' })).toBeEnabled();
+		expect(screen.queryByRole('button', { name: /Ablösen/ })).not.toBeInTheDocument();
+
+		await rerender({
+			game: game(true),
+			me: player(),
+			isMyTurn: true,
+			isDebtor: false,
+			onIntent: () => {}
+		});
+
+		expect(screen.getByRole('button', { name: 'Bauen (50 GE)' })).toBeDisabled();
+		expect(screen.getByRole('button', { name: 'Ablösen (36 GE)' })).toBeInTheDocument();
+		expect(screen.queryByRole('button', { name: /Hypothek/ })).toBeNull();
+		expect(screen.getByRole('button', { name: 'Haus verkaufen' })).toBeDisabled();
+		expect(screen.getByRole('button', { name: 'An Bank (0 GE)' })).toBeEnabled();
+	});
+
+	it('renders no building buttons for tiles without a build value', () => {
+		const tankstelle = game();
+		tankstelle.board = [
+			...tankstelle.board,
+			{
+				index: 3,
+				name: 'Tankstelle Nord',
+				type: 'tankstelle',
+				price: 200,
+				sell: 140
+			}
+		];
+		tankstelle.tiles = [...tankstelle.tiles, { owner: 0, houses: 0, mortgaged: false }];
+
+		render(EstatePanel, {
+			game: tankstelle,
+			me: player(),
+			isMyTurn: true,
+			isDebtor: false,
+			onIntent: () => {}
+		});
+
+		const li = screen.getByText('Tankstelle Nord').closest('li') as HTMLElement;
+		expect(within(li).queryByRole('button', { name: /Bauen/ })).not.toBeInTheDocument();
+		expect(within(li).queryByRole('button', { name: 'Haus verkaufen' })).not.toBeInTheDocument();
+		expect(within(li).getByRole('button', { name: 'Hypothek (100 GE)' })).toBeInTheDocument();
+		expect(within(li).getByRole('button', { name: 'An Bank (140 GE)' })).toBeInTheDocument();
 	});
 });
