@@ -15,7 +15,7 @@ The development stack mocks different logins on port 8000 - 8003:
 
 - Arteon: <http:/127.0.0.1:8000/>
 - Beetle: <http://127.0.0.1:8001/>
-- Challenger: <http://127.0.0.1:8002/>
+- Camaro: <http://127.0.0.1:8002/>
 - Ducato: <http://127.0.0.1:8003/>
 
 ### Local stack

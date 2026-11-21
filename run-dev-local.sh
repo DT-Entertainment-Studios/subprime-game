@@ -199,7 +199,7 @@ start_reverse_proxy
 log "Development stack is started:"
 log "    http://127.0.0.1:8000 Arteon"
 log "    http://127.0.0.1:8001 Beetle"
-log "    http://127.0.0.1:8002 Challenger"
+log "    http://127.0.0.1:8002 Camaro"
 log "    http://127.0.0.1:8003 Ducato"
 log "Press Ctrl+C to stop."
 
