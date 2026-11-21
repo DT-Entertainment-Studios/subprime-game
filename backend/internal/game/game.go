@@ -116,6 +116,13 @@ type Auction struct {
 	History []Bid     `json:"history"`
 }
 
+// PendingAuctionWin is a won tile whose ownership is held back until the
+// winner has settled the auction debt. The tile remains Bank-owned meanwhile.
+type PendingAuctionWin struct {
+	Tile   int
+	Winner int
+}
+
 // TradeStatus is the lifecycle of a trade offer.
 type TradeStatus string
 
@@ -191,12 +198,13 @@ type Game struct {
 	Debtor    int
 	debtQueue []int
 
-	Pending *PendingPurchase
-	Auction *Auction
-	Trades  []*TradeOffer
-	Decks   map[board.Deck]*DeckState
-	Events  []Event
-	Winner  int
+	Pending           *PendingPurchase
+	Auction           *Auction
+	pendingAuctionWin *PendingAuctionWin // nil = no held-back win (engine internal)
+	Trades            []*TradeOffer
+	Decks             map[board.Deck]*DeckState
+	Events            []Event
+	Winner            int
 
 	extraTurn bool
 	turnOver  bool

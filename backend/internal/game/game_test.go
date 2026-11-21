@@ -66,6 +66,8 @@ func TestTaxFields(t *testing.T) {
 			t.Errorf("cash = %d, want 1400 after paying 100 GE", got)
 		}
 	})
+}
+
 func TestNewDefaultsToCryptoRand(t *testing.T) {
 	cat, err := board.New()
 	if err != nil {
@@ -322,6 +324,9 @@ func TestAuction(t *testing.T) {
 			}
 			if got := g.Players[1].Cash; got != tc.wantCash {
 				t.Errorf("cash = %d, want %d", got, tc.wantCash)
+			}
+			if g.pendingAuctionWin != nil {
+				t.Errorf("pendingAuctionWin = %+v, want nil (immediate transfer)", g.pendingAuctionWin)
 			}
 		})
 	}
@@ -1323,8 +1328,11 @@ func TestAuctionWinnerDebtBlocksAndResumes(t *testing.T) {
 	if !g.Tick(clock.Now()) {
 		t.Fatal("Tick() = false, want true (auction resolved)")
 	}
-	if g.Tiles[1].Owner != 2 {
-		t.Errorf("tile owner = %d, want winner 2", g.Tiles[1].Owner)
+	if g.Tiles[1].Owner != Bank {
+		t.Errorf("tile owner = %d, want Bank while auction debt is open", g.Tiles[1].Owner)
+	}
+	if g.pendingAuctionWin == nil {
+		t.Error("pendingAuctionWin = nil, want held-back win")
 	}
 	if got := g.Players[2].Cash; got != -100 {
 		t.Errorf("winner cash = %d, want -100", got)
@@ -1341,12 +1349,24 @@ func TestAuctionWinnerDebtBlocksAndResumes(t *testing.T) {
 	if err := g.Mortgage(2, 39); err != nil {
 		t.Fatalf("Mortgage(debtor) error = %v", err)
 	}
+	if g.Tiles[1].Owner != 2 {
+		t.Errorf("tile owner after settlement = %d, want winner 2", g.Tiles[1].Owner)
+	}
+	if g.pendingAuctionWin != nil {
+		t.Errorf("pendingAuctionWin = %+v, want nil after settlement", g.pendingAuctionWin)
+	}
 	if g.Debtor != -1 {
 		t.Errorf("debtor after clearing = %d, want -1", g.Debtor)
 	}
 	if g.Current != 1 || g.TurnPhase != TurnAwaitingRoll {
 		t.Errorf("current = %d phase = %q, want 1/awaiting_roll (one rotation)",
 			g.Current, g.TurnPhase)
+	}
+	if lastEvent(g, "auction_debt") == nil {
+		t.Error("auction_debt event missing")
+	}
+	if lastEvent(g, "auction_transfer") == nil {
+		t.Error("auction_transfer event missing")
 	}
 }
 
@@ -1388,16 +1408,123 @@ func TestAuction120PercentDebt(t *testing.T) {
 				if got := g.Players[1].Cash; got != -86 {
 					t.Errorf("winner cash = %d, want -86", got)
 				}
+				if g.Tiles[1].Owner != Bank {
+					t.Errorf("tile owner = %d, want Bank while auction debt is open", g.Tiles[1].Owner)
+				}
+				if err := g.SellToBank(1, 39); err != nil {
+					t.Fatalf("SellToBank(debtor, 39) error = %v", err)
+				}
 				if g.Tiles[1].Owner != 1 {
-					t.Errorf("tile owner = %d, want 1", g.Tiles[1].Owner)
+					t.Errorf("tile owner after settlement = %d, want winner 1", g.Tiles[1].Owner)
+				}
+				if g.pendingAuctionWin != nil {
+					t.Errorf("pendingAuctionWin = %+v, want nil after settlement", g.pendingAuctionWin)
 				}
 			} else {
 				if !g.Players[1].Bankrupt || g.Debtor != -1 {
 					t.Fatalf("bankrupt = %v debtor = %d, want automatic elimination",
 						g.Players[1].Bankrupt, g.Debtor)
 				}
+				if g.Tiles[1].Owner != Bank {
+					t.Errorf("tile owner = %d, want Bank on automatic bankruptcy", g.Tiles[1].Owner)
+				}
+				if g.pendingAuctionWin != nil {
+					t.Errorf("pendingAuctionWin = %+v, want nil on bankruptcy", g.pendingAuctionWin)
+				}
 			}
 		})
+	}
+}
+
+func TestAuctionDebtHoldsWonTileUntilPaid(t *testing.T) {
+	g, clock := newTestGame(t, 3)
+	g.Players[2].Cash = 100
+	g.Tiles[39].Owner = 2
+	g.offerPurchase(0, 1)
+	if err := g.Decline(0); err != nil {
+		t.Fatalf("Decline() error = %v", err)
+	}
+	if err := g.Bid(2, 200); err != nil {
+		t.Fatalf("Bid(2, 200) error = %v", err)
+	}
+	clock.Advance(16 * time.Second)
+	if !g.Tick(clock.Now()) {
+		t.Fatal("Tick() = false, want true (auction resolved)")
+	}
+	if g.Debtor != 2 {
+		t.Fatalf("debtor = %d, want 2", g.Debtor)
+	}
+
+	// The won tile stays Bank-owned and cannot cover its own auction bill.
+	if err := g.Mortgage(2, 1); err == nil {
+		t.Error("Mortgage(2, 1) during debt = nil, want error")
+	} else if re, ok := err.(*RuleError); !ok || re.Code != "not_owner" {
+		t.Errorf("Mortgage(2, 1) error = %v (%T), want *RuleError with code not_owner", err, err)
+	}
+	if g.Tiles[1].Owner != Bank || g.Players[2].Cash != -100 || g.Debtor != 2 {
+		t.Errorf("state changed by Mortgage(2, 1): owner = %d cash = %d debtor = %d",
+			g.Tiles[1].Owner, g.Players[2].Cash, g.Debtor)
+	}
+	if err := g.SellToBank(2, 1); err == nil {
+		t.Error("SellToBank(2, 1) during debt = nil, want error")
+	} else if re, ok := err.(*RuleError); !ok || re.Code != "not_owner" {
+		t.Errorf("SellToBank(2, 1) error = %v (%T), want *RuleError with code not_owner", err, err)
+	}
+	if g.Tiles[1].Owner != Bank || g.Players[2].Cash != -100 || g.Debtor != 2 {
+		t.Errorf("state changed by SellToBank(2, 1): owner = %d cash = %d debtor = %d",
+			g.Tiles[1].Owner, g.Players[2].Cash, g.Debtor)
+	}
+	if lastEvent(g, "auction_debt") == nil {
+		t.Error("auction_debt event missing")
+	}
+
+	// Liquidating a different property clears the debt and releases the tile.
+	if err := g.Mortgage(2, 39); err != nil {
+		t.Fatalf("Mortgage(2, 39) error = %v", err)
+	}
+	if g.Tiles[1].Owner != 2 {
+		t.Errorf("tile owner after settlement = %d, want winner 2", g.Tiles[1].Owner)
+	}
+	if g.pendingAuctionWin != nil {
+		t.Errorf("pendingAuctionWin = %+v, want nil after settlement", g.pendingAuctionWin)
+	}
+	if g.Current != 1 {
+		t.Errorf("current = %d, want 1 after debt resume", g.Current)
+	}
+	if lastEvent(g, "auction_transfer") == nil {
+		t.Error("auction_transfer event missing")
+	}
+}
+
+func TestAuctionGiveUpKeepsWonTileAtBank(t *testing.T) {
+	g, clock := newTestGame(t, 3)
+	g.Players[2].Cash = 100
+	g.Tiles[39].Owner = 2
+	g.offerPurchase(0, 1)
+	if err := g.Decline(0); err != nil {
+		t.Fatalf("Decline() error = %v", err)
+	}
+	if err := g.Bid(2, 200); err != nil {
+		t.Fatalf("Bid(2, 200) error = %v", err)
+	}
+	clock.Advance(16 * time.Second)
+	if !g.Tick(clock.Now()) {
+		t.Fatal("Tick() = false, want true (auction resolved)")
+	}
+	if g.Debtor != 2 {
+		t.Fatalf("debtor = %d, want 2", g.Debtor)
+	}
+	if err := g.GiveUp(2); err != nil {
+		t.Fatalf("GiveUp(2) error = %v", err)
+	}
+	if !g.Players[2].Bankrupt {
+		t.Error("player 2 not bankrupt after give-up")
+	}
+	if g.Tiles[1].Owner != Bank {
+		t.Errorf("tile owner = %d, want Bank after give-up", g.Tiles[1].Owner)
+	}
+	if g.pendingAuctionWin != nil {
+		t.Errorf("pendingAuctionWin = %+v, want nil after give-up", g.pendingAuctionWin)
 	}
 }
 

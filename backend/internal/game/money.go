@@ -131,6 +131,7 @@ func (g *Game) settleDebtIfCleared() {
 		return
 	}
 	g.logf("debt_paid", g.Debtor, p.Cash, "%s hat die Schulden beglichen.", p.Name)
+	g.settlePendingAuctionWin()
 	if g.Debtor == g.Current {
 		g.extraTurn = false
 		g.turnOver = true
@@ -243,6 +244,7 @@ func (g *Game) advanceDebtFocus() {
 // §4.1, §4.10); pending claims are only relevant for legacy callers.
 func (g *Game) bankrupt(payer int, claims map[int]int, details ...BankruptcyDetails) map[int]int {
 	p := g.Players[payer]
+	g.discardPendingAuctionWinFor(payer)
 	g.disableAutopilotSilently(payer)
 	pending := p.Cash
 	if pending < 0 {
@@ -483,6 +485,7 @@ func (g *Game) checkGameOver() {
 	g.Auction = nil
 	g.Debtor = -1
 	g.debtQueue = nil
+	g.pendingAuctionWin = nil
 	g.Winner = last
 	for i := range g.Players {
 		g.disableAutopilotSilently(i)

@@ -362,8 +362,9 @@ the client shows. There are no silent fallbacks.
   gets the offer and may raise money by mortgaging or selling assets before deciding.
   Auction bids are capped by the bidder's liquidation value (their cash plus the full
   realizable value of their assets), not by cash alone. A winner whose bid exceeds their cash
-  still gets the tile: their cash goes negative and the global debt phase starts immediately,
-  before the interrupted turn continues.
+  does not receive the tile yet: it stays with the Bank until the auction bill is paid. Their
+  cash goes negative and the global debt phase starts immediately, before the interrupted turn
+  continues.
 - The tile only goes to auction when the player
   actively starts the auction. It is never auctioned automatically.
 - **Double-payment rule**: buying the tile that completes a color group costs **twice**
@@ -376,10 +377,11 @@ the client shows. There are no silent fallbacks.
 - **Bid limit and insufficient cash**: a bid may not exceed the bidder's liquidation value —
   cash plus all building refunds plus the 70 % sale value of every unmortgaged property
   (mortgaged properties count as 0). The 20 GE step and the 20 GE minimum bid are unchanged.
-  A winner who cannot pay from cash alone still receives the tile and immediately enters the
-  debt phase; the auction is not re-run and the bid does not lapse. If the 120 % rule lifts the
-  price above the bidder's liquidation value, the same debt phase (or automatic bankruptcy)
-  applies.
+  A winner who cannot pay from cash alone immediately enters
+  the debt phase. The tile is transferred once the debt is settled, while bankruptcy or giving
+  up leaves it with the Bank. The auction is not re-run and the bid does not lapse. If the 120 %
+  rule lifts the price above the bidder's liquidation value, the same debt phase (or automatic
+  bankruptcy) applies.
 - **Auction completion rule**: if the winning tile completes a color group, the winner
   pays **120 % of its bid** instead of the bid.
 - A tile nobody bids on stays with the bank and can be bought at the catalog price
@@ -990,7 +992,8 @@ Why each open point was resolved the way it was.
   active player. The payers then settle their debts to the bank.
 - **Unaffordable purchase**: a player who cannot cover the price still receives the offer.
   Auction bids may reach full liquidation value, and an auction winner who cannot pay from
-  cash enters the global debt phase.
+  cash enters the global debt phase and the won tile stays with the Bank until that debt is
+  paid.
 - **Dedicated presence channel**: presence and invitations travel over their own
   WebSocket (`/api/ws/presence`) instead of the room socket. The room contract stays
   `state`/`error`, and a global start-page list is not tied to a per-room connection.
