@@ -57,12 +57,13 @@ var DefaultRules = Rules{
 
 // Stats are per-game player statistics shown on the final screen.
 type Stats struct {
-	RentCollected    int `json:"rentCollected"`
-	RentPaid         int `json:"rentPaid"`
-	PropertiesBought int `json:"propertiesBought"`
-	PropertiesSold   int `json:"propertiesSold"`
-	HousesBuilt      int `json:"housesBuilt"`
-	Trades           int `json:"trades"`
+	RentCollected    int         `json:"rentCollected"`
+	RentPaid         int         `json:"rentPaid"`
+	RentPaidTo       map[int]int `json:"rentPaidTo"`
+	PropertiesBought int         `json:"propertiesBought"`
+	PropertiesSold   int         `json:"propertiesSold"`
+	HousesBuilt      int         `json:"housesBuilt"`
+	Trades           int         `json:"trades"`
 }
 
 // Player is one participant. JailCards holds the ids of held
@@ -78,6 +79,7 @@ type Player struct {
 	JailAttempts int      `json:"jailAttempts"`
 	JailCards    []string `json:"-"`
 	Bankrupt     bool     `json:"bankrupt"`
+	EliminatedAt int      `json:"-"`
 	Connected    bool     `json:"connected"`
 	Stats        Stats    `json:"stats"`
 
@@ -208,6 +210,7 @@ type Game struct {
 
 	extraTurn bool
 	turnOver  bool
+	Turn      int
 	eventSeq  int
 	now       time.Time
 
@@ -245,6 +248,7 @@ func New(cat *board.Catalog, players []*Player, opts Options) (*Game, error) {
 		Tiles:           make([]TileState, len(cat.Tiles)),
 		Current:         0,
 		TurnPhase:       TurnAwaitingRoll,
+		Turn:            1,
 		Debtor:          -1,
 		Winner:          -1,
 		Decks:           map[board.Deck]*DeckState{},
@@ -269,7 +273,7 @@ func New(cat *board.Catalog, players []*Player, opts Options) (*Game, error) {
 		p.JailCards = nil
 		p.Bankrupt = false
 		p.Connected = true
-		p.Stats = Stats{}
+		p.Stats = Stats{RentPaidTo: map[int]int{}}
 		p.Autopilot = AutopilotSettings{
 			Enabled:     false,
 			BuyAlways:   true,

@@ -401,6 +401,7 @@ func (g *Game) advanceTurn() {
 		g.TurnPhase = TurnFinished
 		return
 	}
+	g.Turn++
 	g.Pending = nil
 	g.Auction = nil
 	g.extraTurn = false

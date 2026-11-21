@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { BANKRUPTCY_CAUSE_LABELS, bankruptcyCauseLabel, bankruptcyFor } from './bankruptcy';
+import {
+	BANKRUPTCY_CAUSE_LABELS,
+	bankruptcyCauseLabel,
+	bankruptcyFor,
+	eliminationInfo
+} from './bankruptcy';
 import type { GameEvent } from './types';
 
 function bankruptcyEvent(overrides: Partial<GameEvent> = {}): GameEvent {
@@ -15,6 +20,10 @@ function bankruptcyEvent(overrides: Partial<GameEvent> = {}): GameEvent {
 		at: '2026-01-01T00:00:00Z',
 		...overrides
 	};
+}
+
+function event(type: string, seat: number, text: string, seq = 1): GameEvent {
+	return { seq, type, player: seat, text, at: '2026-01-01T00:00:00Z' };
 }
 
 describe('bankruptcy', () => {
@@ -54,5 +63,45 @@ describe('bankruptcy', () => {
 		expect(bankruptcyFor(events, 0)).toBeUndefined();
 		expect(bankruptcyFor(events, 1)?.seq).toBe(2);
 		expect(bankruptcyFor(events, 2)).toBeUndefined();
+	});
+});
+
+describe('eliminationInfo', () => {
+	it('labels give_up as Aufgegeben with the event text as tooltip', () => {
+		const info = eliminationInfo([event('give_up', 1, 'Ben gibt auf und scheidet aus.')], 1);
+		expect(info).toEqual({ label: 'Aufgegeben', tooltip: 'Ben gibt auf und scheidet aus.' });
+	});
+
+	it('labels leave as Verlassen with the event text as tooltip', () => {
+		const info = eliminationInfo([event('leave', 2, 'Clara verlässt das Spiel.')], 2);
+		expect(info).toEqual({ label: 'Verlassen', tooltip: 'Clara verlässt das Spiel.' });
+	});
+
+	it('uses the structured cause label, tooltip and fallback for bankruptcies', () => {
+		const cause = eliminationInfo([bankruptcyEvent({ player: 1 })], 1);
+		expect(cause.label).toBe('Miete');
+		expect(cause.tooltip).toContain('240 GE');
+
+		const generic = eliminationInfo(
+			[event('bankruptcy', 1, 'Ben ist pleite.', 2)],
+			1
+		);
+		expect(generic).toEqual({ label: 'Zahlung', tooltip: '' });
+	});
+
+	it('prefers give_up over leave and a structured bankruptcy cause', () => {
+		const info = eliminationInfo(
+			[
+				bankruptcyEvent({ player: 1 }),
+				event('leave', 1, 'Ben verlässt das Spiel.', 2),
+				event('give_up', 1, 'Ben gibt auf und scheidet aus.', 3)
+			],
+			1
+		);
+		expect(info).toEqual({ label: 'Aufgegeben', tooltip: 'Ben gibt auf und scheidet aus.' });
+	});
+
+	it('returns the Zahlung fallback for a seat with no events', () => {
+		expect(eliminationInfo([], 3)).toEqual({ label: 'Zahlung', tooltip: '' });
 	});
 });

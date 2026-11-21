@@ -15,6 +15,7 @@ type PlayerView struct {
 	JailAttempts     int           `json:"jailAttempts"`
 	JailCards        int           `json:"jailCards"`
 	Bankrupt         bool          `json:"bankrupt"`
+	EliminatedAt     int           `json:"eliminatedAt"`
 	Connected        bool          `json:"connected"`
 	NetWorth         int           `json:"netWorth"`
 	Stats            Stats         `json:"stats"`
@@ -68,6 +69,7 @@ func (g *Game) StateFor(viewer int) State {
 			JailAttempts:     p.JailAttempts,
 			JailCards:        len(p.JailCards),
 			Bankrupt:         p.Bankrupt,
+			EliminatedAt:     p.EliminatedAt,
 			Connected:        p.Connected,
 			NetWorth:         g.netWorth(i),
 			Stats:            p.Stats,

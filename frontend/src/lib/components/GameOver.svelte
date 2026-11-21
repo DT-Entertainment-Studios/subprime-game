@@ -1,17 +1,16 @@
 <script lang="ts">
 	import type { GameState } from '#lib/types';
 	import { formatMoney, tokenColor } from '#lib/format';
-	import { bankruptcyCauseLabel, bankruptcyFor, bankruptcyTooltip } from '#lib/bankruptcy';
+	import { eliminationInfo } from '#lib/bankruptcy';
+	import { rankedStandings } from '#lib/placement';
 
 	let { game }: { game: GameState } = $props();
 
-	const standings = $derived(
-		[...game.players].sort((a, b) => {
-			if (a.bankrupt !== b.bankrupt) return a.bankrupt ? 1 : -1;
-			return b.netWorth - a.netWorth;
-		})
-	);
+	const standings = $derived(rankedStandings(game.players));
 	const winner = $derived(game.winner >= 0 ? game.players[game.winner] : null);
+	let hoverRent = $state<number | null>(null);
+	let focusRent = $state<number | null>(null);
+	let openRent = $derived(hoverRent ?? focusRent);
 </script>
 
 <div class="over">
@@ -26,6 +25,7 @@
 		<table>
 			<thead>
 				<tr>
+					<th>Platz</th>
 					<th>Spieler</th>
 					<th>Ausscheiden</th>
 					<th>Vermögen</th>
@@ -37,19 +37,44 @@
 				</tr>
 			</thead>
 			<tbody>
-				{#each standings as player (player.id)}
-					{@const bust = player.bankrupt ? bankruptcyFor(game.events, player.seat) : undefined}
+				{#each standings as entry (entry.player.id)}
+					{@const player = entry.player}
+					{@const info = player.bankrupt ? eliminationInfo(game.events, player.seat) : undefined}
 					<tr class:bankrupt={player.bankrupt}>
+						<td>{entry.place}</td>
 						<td>
 							<span class="dot" style="background: {tokenColor(player.color)}"></span>
 							{player.name}
 						</td>
-						<td class="reason" title={bust ? bankruptcyTooltip(bust) : ''}>
-							{player.bankrupt ? bankruptcyCauseLabel(bust?.cause) : '–'}
+						<td class="reason" title={info?.tooltip ?? ''}>
+							{player.bankrupt ? info!.label : '–'}
 						</td>
 						<td>{formatMoney(player.netWorth)}</td>
 						<td>{formatMoney(player.stats.rentCollected)}</td>
-						<td>{formatMoney(player.stats.rentPaid)}</td>
+						<td>
+							<span class="rent-wrap">
+								<button
+									type="button"
+									class="rent-cell"
+									aria-describedby={openRent === player.seat ? `rent-tip-${player.seat}` : undefined}
+									onmouseenter={() => (hoverRent = player.seat)}
+									onmouseleave={() => (hoverRent = null)}
+									onfocusin={() => (focusRent = player.seat)}
+									onfocusout={() => (focusRent = null)}
+								>
+									{formatMoney(player.stats.rentPaid)}
+								</button>
+								{#if openRent === player.seat}
+									<span class="rent-tooltip" role="tooltip" id={`rent-tip-${player.seat}`}>
+										<ul class="rent-list">
+											{#each game.players.filter((o) => o.seat !== player.seat) as other (other.seat)}
+												<li>an {other.name}: {formatMoney(player.stats.rentPaidTo?.[other.seat] ?? 0)}</li>
+											{/each}
+										</ul>
+									</span>
+								{/if}
+							</span>
+						</td>
 						<td>{player.stats.propertiesBought}</td>
 						<td>{player.stats.housesBuilt}</td>
 						<td>{player.stats.trades}</td>
@@ -113,12 +138,19 @@
 	}
 
 	th:nth-child(2),
+	th:nth-child(3),
+	td:nth-child(2),
 	td.reason {
 		text-align: left;
 	}
 
+	/* Keep bankrupt rows muted without dimming the tooltip (a row descendant). */
 	tr.bankrupt {
-		opacity: 0.6;
+		color: var(--md-sys-color-on-surface-variant);
+	}
+
+	tr.bankrupt .dot {
+		opacity: 0.5;
 	}
 
 	.dot {
@@ -127,6 +159,43 @@
 		height: 0.8rem;
 		border-radius: 50%;
 		margin-right: 0.3rem;
+	}
+
+	.rent-wrap {
+		position: relative;
+		display: inline-block;
+	}
+
+	.rent-cell {
+		background: none;
+		border: 0;
+		padding: 0;
+		color: inherit;
+		font: inherit;
+		text-align: right;
+		cursor: help;
+	}
+
+	.rent-tooltip {
+		position: absolute;
+		top: 100%;
+		right: 0;
+		z-index: 1;
+		min-width: max-content;
+		white-space: nowrap;
+		padding: 0.5rem 0.75rem;
+		border-radius: var(--md-sys-shape-corner-small);
+		background: var(--md-sys-color-inverse-surface);
+		color: var(--md-sys-color-inverse-on-surface);
+		box-shadow: 0 var(--md-sys-elevation-2) calc(var(--md-sys-elevation-3) * 2)
+			color-mix(in srgb, var(--md-sys-color-shadow) 32%, transparent);
+	}
+
+	.rent-list {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		text-align: left;
 	}
 
 	.cta {

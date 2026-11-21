@@ -53,3 +53,27 @@ export function bankruptcyTooltip(event: GameEvent): string {
 		`Realisierbar ${formatMoney(event.realizable)}, ` +
 		`Fehlbetrag ${formatMoney(event.shortfall)}.`;
 }
+
+/** Display label and native tooltip for the `Ausscheiden` column of one seat. */
+export interface EliminationInfo {
+	label: string;
+	tooltip: string;
+}
+
+/**
+ * Label for a seat's elimination. Voluntary eliminations take precedence over a
+ * structured bankruptcy cause (the backend logs no cause for `give_up`/`leave`).
+ */
+export function eliminationInfo(events: GameEvent[], seat: number): EliminationInfo {
+	const giveUp = events.find((event) => event.type === 'give_up' && event.player === seat);
+	if (giveUp) return { label: 'Aufgegeben', tooltip: giveUp.text };
+
+	const leave = events.find((event) => event.type === 'leave' && event.player === seat);
+	if (leave) return { label: 'Verlassen', tooltip: leave.text };
+
+	const bust = bankruptcyFor(events, seat);
+	return {
+		label: bankruptcyCauseLabel(bust?.cause),
+		tooltip: bust ? bankruptcyTooltip(bust) : ''
+	};
+}

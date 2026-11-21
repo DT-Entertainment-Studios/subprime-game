@@ -339,6 +339,7 @@ func (g *Game) bankrupt(payer int, claims map[int]int, details ...BankruptcyDeta
 		g.logf("bankruptcy", payer, pending,
 			"%s scheidet aus; die verbleibenden Werte gehen an die Bank.", p.Name)
 	}
+	p.EliminatedAt = g.Turn
 	p.Bankrupt = true
 	if payer == g.Current {
 		g.turnOver = true
@@ -557,6 +558,10 @@ func (g *Game) chargeRent(tenant, owner, idx, amount int) {
 	}
 	g.Players[owner].Stats.RentCollected += paid
 	g.Players[tenant].Stats.RentPaid += paid
+	if g.Players[tenant].Stats.RentPaidTo == nil {
+		g.Players[tenant].Stats.RentPaidTo = map[int]int{}
+	}
+	g.Players[tenant].Stats.RentPaidTo[owner] += paid
 	g.logf("rent", tenant, paid, "%s zahlt %d GE Miete an %s.", g.Players[tenant].Name, paid, g.Players[owner].Name)
 	g.applyUtilityShare(owner, idx, paid)
 }

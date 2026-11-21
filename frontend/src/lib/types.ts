@@ -38,6 +38,8 @@ export interface Rules {
 export interface PlayerStats {
 	rentCollected: number;
 	rentPaid: number;
+	/** Backend sends direct rent paid per opponent seat; optional so older fixtures compile. */
+	rentPaidTo?: Record<number, number>;
 	propertiesBought: number;
 	propertiesSold: number;
 	housesBuilt: number;
@@ -78,6 +80,8 @@ export interface Player {
 	stats: PlayerStats;
 	/** Optional so existing fixtures that predate the autopilot keep compiling. */
 	autopilot?: AutopilotView;
+	/** Backend turn-order stamp at bankruptcy; optional so older fixtures compile. */
+	eliminatedAt?: number;
 }
 
 export interface TileState {
