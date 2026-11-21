@@ -11,6 +11,7 @@ function player(seat: number, name: string, overrides: Partial<Player> = {}): Pl
 		color: 'blau',
 		seat,
 		cash: 1500,
+		liquidationValue: 1500,
 		position: 0,
 		inJail: false,
 		jailAttempts: 0,
@@ -60,6 +61,7 @@ function game(events: GameEvent[]): GameState {
 		players: [player(0, 'Anton'), player(1, 'Berta')],
 		tiles: [],
 		current: 0,
+		debtor: -1,
 		turnPhase: 'awaiting_roll',
 		dice: [1, 2],
 		doubles: 0,
@@ -78,6 +80,21 @@ function card(seq: number, deck: GameEvent['deck'], text: string, seat = 0): Gam
 		text: `${names[seat] ?? `Spieler ${seat}`} zieht: ${text}`,
 		deck,
 		at: '2026-01-01T00:00:00Z'
+	};
+}
+
+function bankruptcy(overrides: Partial<GameEvent> = {}): GameEvent {
+	return {
+		seq: 10,
+		type: 'bankruptcy',
+		player: 0,
+		cause: 'miete',
+		debt: 420,
+		realizable: 180,
+		shortfall: 240,
+		text: 'Anton ist pleite. Miete an Berta: 420 GE. Realisierbar: 180 GE. Fehlbetrag: 240 GE. Seine Felder gehen an die Bank.',
+		at: '2026-01-01T00:00:00Z',
+		...overrides
 	};
 }
 
@@ -325,5 +342,41 @@ describe('CardPopups', () => {
 
 		expect(screen.queryByLabelText('Ereigniskarte von Anton')).not.toBeInTheDocument();
 		expect(screen.getByLabelText('Gemeinschaftskarte von Anton')).toBeInTheDocument();
+	});
+
+	it('does not replay a bankruptcy event from the first snapshot', () => {
+		render(CardPopups, { game: game([bankruptcy()]), me: null });
+
+		expect(screen.queryByLabelText('Pleite von Anton')).not.toBeInTheDocument();
+		expect(document.activeElement).toBe(document.body);
+	});
+
+	it('shows a dismissible bankruptcy notice for all viewers', async () => {
+		await drawCard([bankruptcy()], null);
+
+		const notice = screen.getByLabelText('Pleite von Anton');
+		expect(notice.textContent).toContain('Miete');
+		expect(notice.textContent).toContain('420 GE');
+		expect(notice.textContent).toContain('240 GE');
+		expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+		expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+		expect(document.activeElement).toBe(document.body);
+
+		await fireEvent.click(screen.getByRole('button', { name: 'Hinweis schließen' }));
+		expect(screen.queryByLabelText('Pleite von Anton')).not.toBeInTheDocument();
+	});
+
+	it('shows exactly one notice per bankrupt player', async () => {
+		await drawCard([bankruptcy({ seq: 10 }), bankruptcy({ seq: 11 })], null);
+
+		expect(screen.getAllByLabelText('Pleite von Anton')).toHaveLength(1);
+	});
+
+	it('keeps card notices working next to a bankruptcy notice', async () => {
+		await drawCard([bankruptcy(), card(11, 'ereignisfeld', 'Zahle 50 GE.')], null);
+
+		expect(screen.getByLabelText('Pleite von Anton')).toBeInTheDocument();
+		expect(screen.getByLabelText('Ereigniskarte von Anton')).toBeInTheDocument();
+		expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 	});
 });

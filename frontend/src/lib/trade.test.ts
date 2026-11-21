@@ -17,6 +17,7 @@ function game(): GameState {
 		players: [],
 		tiles: [],
 		current: 0,
+		debtor: -1,
 		turnPhase: 'awaiting_roll',
 		dice: [1, 2],
 		doubles: 0,

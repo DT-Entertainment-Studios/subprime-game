@@ -10,6 +10,7 @@ function player(id: string, name: string, seat: number, overrides: Partial<Playe
 		color: 'blau',
 		seat,
 		cash: 1500,
+		liquidationValue: 1500,
 		position: 0,
 		inJail: false,
 		jailAttempts: 0,
@@ -48,6 +49,7 @@ function game(phase: GameState['phase'] = 'playing'): GameState {
 		],
 		tiles: [],
 		current: 0,
+		debtor: -1,
 		turnPhase: phase === 'finished' ? 'finished' : 'awaiting_roll',
 		dice: [3, 4],
 		doubles: 0,
@@ -206,5 +208,46 @@ describe('PlayersList current player', () => {
 		render(PlayersList, { game: state, me: me(), kickVotes: [], onVotekick: () => {} });
 
 		expect(document.querySelectorAll('.player.current')).toHaveLength(0);
+	});
+});
+
+describe('PlayersList bankruptcy badge', () => {
+	it('shows a pleite badge with cause and amounts tooltip', () => {
+		const state = game();
+		state.players[1].bankrupt = true;
+		state.events = [
+			{
+				seq: 1,
+				type: 'bankruptcy',
+				player: 1,
+				cause: 'miete',
+				debt: 420,
+				realizable: 180,
+				shortfall: 240,
+				text: 'Ben ist pleite. Miete an Berta: 420 GE. Realisierbar: 180 GE. Fehlbetrag: 240 GE.',
+				at: '2026-01-01T00:00:00Z'
+			}
+		];
+
+		render(PlayersList, { game: state, me: me() });
+
+		const badge = screen.getByText('pleite');
+		expect(badge.closest('li')).toContainElement(screen.getByText('Ben'));
+		const title = badge.getAttribute('title') ?? '';
+		expect(title).toContain('Miete');
+		expect(title).toContain('420 GE');
+		expect(title).toContain('240 GE');
+	});
+
+	it('keeps a generic tooltip for legacy bankruptcies', () => {
+		const state = game();
+		state.players[1].bankrupt = true;
+		state.events = [
+			{ seq: 1, type: 'bankruptcy', player: 1, text: 'Ben scheidet aus.', at: '2026-01-01T00:00:00Z' }
+		];
+
+		render(PlayersList, { game: state, me: me() });
+
+		expect(screen.getByText('pleite')).toHaveAttribute('title', 'Aus dem Spiel ausgeschieden');
 	});
 });

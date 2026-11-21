@@ -579,6 +579,10 @@ func TestDebtInsteadOfBankruptcy(t *testing.T) {
 	g, _ := newTestGame(t, 2)
 	g.Tiles[1].Owner = 0
 	g.Tiles[1].Houses = 1
+	// Extra liquid assets keep the debt coverable, so it must enter the debt
+	// phase instead of triggering automatic bankruptcy.
+	g.Tiles[37].Owner = 0
+	g.Tiles[39].Owner = 0
 	g.Players[0].Cash = 5
 	received := g.settle(0, map[int]int{1: 500})
 	if g.Players[0].Bankrupt {
@@ -596,13 +600,21 @@ func TestDebtInsteadOfBankruptcy(t *testing.T) {
 	if g.Tiles[1].Owner != 0 || g.Tiles[1].Houses != 1 {
 		t.Errorf("tile changed: %+v", g.Tiles[1])
 	}
+	if g.Debtor != 0 {
+		t.Errorf("debtor = %d, want 0", g.Debtor)
+	}
+	if g.TurnPhase == TurnAwaitingDebt {
+		t.Errorf("turn phase changed inside settle to %q", g.TurnPhase)
+	}
+	g.debtCheckpoint()
 	if g.TurnPhase != TurnAwaitingDebt {
-		t.Errorf("turn phase = %q, want %q", g.TurnPhase, TurnAwaitingDebt)
+		t.Errorf("turn phase = %q, want %q after checkpoint", g.TurnPhase, TurnAwaitingDebt)
 	}
 }
 
 func TestMultiCreditorDebt(t *testing.T) {
 	g, _ := newTestGame(t, 3)
+	g.Tiles[39].Owner = 0 // coverable debt, not automatic bankruptcy
 	g.Players[0].Cash = 11
 	received := g.settle(0, map[int]int{1: 50, 2: 50})
 	if got := g.Players[0].Cash; got != -89 {
@@ -613,6 +625,9 @@ func TestMultiCreditorDebt(t *testing.T) {
 	}
 	if g.Players[1].Cash != 1550 || g.Players[2].Cash != 1550 {
 		t.Errorf("creditor cash = %d/%d, want 1550/1550", g.Players[1].Cash, g.Players[2].Cash)
+	}
+	if g.Debtor != 0 {
+		t.Errorf("debtor = %d, want 0", g.Debtor)
 	}
 }
 
@@ -652,6 +667,9 @@ func TestAdvanceTurnStartsDebtPhase(t *testing.T) {
 	if g.Current != 1 || g.TurnPhase != TurnAwaitingDebt {
 		t.Errorf("current = %d phase = %q, want 1/awaiting_debt", g.Current, g.TurnPhase)
 	}
+	if g.Debtor != 1 {
+		t.Errorf("debtor = %d, want 1", g.Debtor)
+	}
 }
 
 func TestGiveUpWhenInDebt(t *testing.T) {
@@ -659,6 +677,7 @@ func TestGiveUpWhenInDebt(t *testing.T) {
 	g.Tiles[1].Owner = 0
 	g.Tiles[1].Houses = 1
 	g.Players[0].Cash = -10
+	g.Debtor = 0
 	g.TurnPhase = TurnAwaitingDebt
 	if err := g.GiveUp(0); err != nil {
 		t.Fatalf("GiveUp() error = %v", err)
@@ -1218,5 +1237,451 @@ func TestThreeDoublesSendToJail(t *testing.T) {
 	}
 	if g.Current == 0 {
 		t.Error("turn did not pass after third double")
+	}
+}
+
+// --- Debt-focus / liquidation-value tests (splits A+B) ---
+
+func TestLiquidationValue(t *testing.T) {
+	g, _ := newTestGame(t, 3)
+	g.Players[0].Cash = 100
+	g.Tiles[11].Owner = 0  // Sell 98, Build 100 (50 per house)
+	g.Tiles[11].Houses = 2 // 2 * 50 = 100
+	g.Tiles[39].Owner = 0  // Sell 280
+	g.Tiles[37].Owner = 0  // Sell 245, Build 200 (100 per level)
+	g.Tiles[37].Houses = 5 // hotel = 5 * 100 = 500
+	g.Tiles[31].Owner = 0  // mortgaged -> 0
+	g.Tiles[31].Mortgaged = true
+
+	want := 100 + 2*50 + 98 + 280 + 5*100 + 245
+	if got := g.liquidationValue(0); got != want {
+		t.Errorf("liquidationValue(0) = %d, want %d", got, want)
+	}
+	if got := g.liquidationValue(1); got != 1500 {
+		t.Errorf("liquidationValue(1) = %d, want 1500 (untouched seat)", got)
+	}
+	if got := g.liquidationValue(99); got != 0 {
+		t.Errorf("liquidationValue(99) = %d, want 0", got)
+	}
+	g.Players[0].Cash = -50
+	if got := g.liquidationValue(0); got != want-150 {
+		t.Errorf("liquidationValue(0) with negative cash = %d, want %d", got, want-150)
+	}
+}
+
+func TestBidUpToLiquidationValue(t *testing.T) {
+	t.Run("limit is liquidation value", func(t *testing.T) {
+		g, _ := newTestGame(t, 2)
+		g.Players[1].Cash = 100
+		g.Tiles[39].Owner = 1 // Sell 280 -> liquidation value 380
+		g.offerPurchase(0, 1)
+		if err := g.Decline(0); err != nil {
+			t.Fatalf("Decline() error = %v", err)
+		}
+		if got := g.liquidationValue(1); got != 380 {
+			t.Fatalf("liquidationValue(1) = %d, want 380", got)
+		}
+		if err := g.Bid(1, 400); err == nil {
+			t.Error("Bid(400) above liquidation value = nil, want error")
+		} else if re, ok := err.(*RuleError); !ok || re.Code != "insufficient_cash" {
+			t.Errorf("Bid(400) error = %v (%T), want insufficient_cash", err, err)
+		}
+		if err := g.Bid(1, 380); err != nil {
+			t.Fatalf("Bid(380) at liquidation value error = %v", err)
+		}
+		if g.Auction.Bidder != 1 || g.Auction.Bid != 380 {
+			t.Errorf("auction = %+v, want bidder 1 at 380", g.Auction)
+		}
+	})
+	t.Run("step and minimum unchanged", func(t *testing.T) {
+		g, _ := newTestGame(t, 2)
+		g.offerPurchase(0, 1)
+		if err := g.Decline(0); err != nil {
+			t.Fatalf("Decline() error = %v", err)
+		}
+		if err := g.Bid(1, 70); err == nil {
+			t.Error("Bid(70) = nil, want invalid_bid")
+		}
+		if err := g.Bid(1, 20); err != nil {
+			t.Errorf("Bid(20) minimum error = %v", err)
+		}
+	})
+}
+
+func TestAuctionWinnerDebtBlocksAndResumes(t *testing.T) {
+	g, clock := newTestGame(t, 3)
+	g.Players[2].Cash = 100
+	g.Tiles[39].Owner = 2 // liquidation value 380, so 200 is bidable
+	g.offerPurchase(0, 1)
+	if err := g.Decline(0); err != nil {
+		t.Fatalf("Decline() error = %v", err)
+	}
+	if err := g.Bid(2, 200); err != nil {
+		t.Fatalf("Bid(2, 200) error = %v", err)
+	}
+	clock.Advance(16 * time.Second)
+	if !g.Tick(clock.Now()) {
+		t.Fatal("Tick() = false, want true (auction resolved)")
+	}
+	if g.Tiles[1].Owner != 2 {
+		t.Errorf("tile owner = %d, want winner 2", g.Tiles[1].Owner)
+	}
+	if got := g.Players[2].Cash; got != -100 {
+		t.Errorf("winner cash = %d, want -100", got)
+	}
+	if g.Debtor != 2 {
+		t.Errorf("debtor = %d, want 2", g.Debtor)
+	}
+	if g.TurnPhase != TurnAwaitingDebt || g.Current != 0 {
+		t.Fatalf("phase = %q current = %d, want awaiting_debt/0", g.TurnPhase, g.Current)
+	}
+	if err := g.Roll(0); err == nil {
+		t.Error("Roll(current) during foreign debt = nil, want error")
+	}
+	if err := g.Mortgage(2, 39); err != nil {
+		t.Fatalf("Mortgage(debtor) error = %v", err)
+	}
+	if g.Debtor != -1 {
+		t.Errorf("debtor after clearing = %d, want -1", g.Debtor)
+	}
+	if g.Current != 1 || g.TurnPhase != TurnAwaitingRoll {
+		t.Errorf("current = %d phase = %q, want 1/awaiting_roll (one rotation)",
+			g.Current, g.TurnPhase)
+	}
+}
+
+func TestAuction120PercentDebt(t *testing.T) {
+	tests := []struct {
+		name     string
+		cushion  bool
+		wantDebt bool
+	}{
+		{name: "coverable enters debt phase", cushion: true, wantDebt: true},
+		{name: "uncoverable bankrupts", cushion: false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			g, clock := newTestGame(t, 3)
+			g.Players[1].Cash = 178
+			g.Tiles[3].Owner = 1 // completes the brown group with tile 1
+			if tc.cushion {
+				g.Tiles[39].Owner = 1
+			}
+			g.offerPurchase(0, 1)
+			if err := g.Decline(0); err != nil {
+				t.Fatalf("Decline() error = %v", err)
+			}
+			if err := g.Bid(1, 220); err != nil {
+				t.Fatalf("Bid(220) error = %v", err)
+			}
+			clock.Advance(16 * time.Second)
+			g.Tick(clock.Now())
+
+			doubled := lastEvent(g, "double_price")
+			if doubled == nil || doubled.Amount != 264 {
+				t.Fatalf("double_price event = %+v, want amount 264 (120%% of 220)", doubled)
+			}
+			if tc.wantDebt {
+				if g.Players[1].Bankrupt || g.Debtor != 1 {
+					t.Fatalf("bankrupt = %v debtor = %d, want debt phase for 1", g.Players[1].Bankrupt, g.Debtor)
+				}
+				if got := g.Players[1].Cash; got != -86 {
+					t.Errorf("winner cash = %d, want -86", got)
+				}
+				if g.Tiles[1].Owner != 1 {
+					t.Errorf("tile owner = %d, want 1", g.Tiles[1].Owner)
+				}
+			} else {
+				if !g.Players[1].Bankrupt || g.Debtor != -1 {
+					t.Fatalf("bankrupt = %v debtor = %d, want automatic elimination",
+						g.Players[1].Bankrupt, g.Debtor)
+				}
+			}
+		})
+	}
+}
+
+func TestBirthdayCardForeignDebtSequential(t *testing.T) {
+	g, _ := newTestGame(t, 3)
+	g.Decks[board.DeckChest].Draw = []string{"chest-birthday"}
+	g.Players[1].Cash = 5
+	g.Players[2].Cash = 5
+	g.Tiles[39].Owner = 1 // coverable
+	g.Tiles[37].Owner = 2 // coverable
+	g.Players[0].Position = 10
+	setDice(g, 3, 4) // lands on chest tile 17
+	if err := g.Roll(0); err != nil {
+		t.Fatalf("Roll() error = %v", err)
+	}
+	if got := g.Players[0].Cash; got != 1520 {
+		t.Errorf("drawer cash = %d, want 1520 (10 from each of two payers)", got)
+	}
+	if got := g.Players[1].Cash; got != -5 || g.Players[2].Cash != -5 {
+		t.Errorf("payer cash = %d/%d, want -5/-5", g.Players[1].Cash, g.Players[2].Cash)
+	}
+	if g.Debtor != 1 || len(g.debtQueue) != 1 || g.debtQueue[0] != 2 {
+		t.Fatalf("focus = %d queue = %v, want 1 then 2 (seat order)", g.Debtor, g.debtQueue)
+	}
+	if g.Current != 0 || g.TurnPhase != TurnAwaitingDebt {
+		t.Fatalf("current = %d phase = %q, want 0/awaiting_debt", g.Current, g.TurnPhase)
+	}
+	if err := g.Roll(0); err == nil {
+		t.Error("Roll(current) while foreign debt open = nil, want error")
+	}
+	if err := g.Mortgage(1, 39); err != nil {
+		t.Fatalf("Mortgage(debtor 1) error = %v", err)
+	}
+	if g.Debtor != 2 || g.Current != 0 {
+		t.Fatalf("after first clearing: debtor = %d current = %d, want 2/0", g.Debtor, g.Current)
+	}
+	if err := g.Mortgage(2, 37); err != nil {
+		t.Fatalf("Mortgage(debtor 2) error = %v", err)
+	}
+	if g.Debtor != -1 || len(g.debtQueue) != 0 {
+		t.Errorf("after last clearing: debtor = %d queue = %v, want -1/empty", g.Debtor, g.debtQueue)
+	}
+	if g.Current != 1 || g.TurnPhase != TurnAwaitingRoll {
+		t.Errorf("current = %d phase = %q, want 1/awaiting_roll (resumed)",
+			g.Current, g.TurnPhase)
+	}
+	if g.Dice != [2]int{3, 4} {
+		t.Errorf("dice = %v, want [3 4] (interrupted turn preserved)", g.Dice)
+	}
+}
+
+func TestUtilityShareForeignDebt(t *testing.T) {
+	g, _ := newTestGame(t, 3)
+	g.Current = 2 // street owner is not active
+	g.Players[0].Cash = 5
+	g.Tiles[11].Owner = 0 // rosa street -> electricity utility
+	g.Tiles[39].Owner = 0 // coverable
+	g.Tiles[12].Owner = 1
+	g.applyUtilityShare(0, 11, 100) // 10 GE share to player 1
+	if got := g.Players[0].Cash; got != -5 {
+		t.Errorf("street owner cash = %d, want -5", got)
+	}
+	if got := g.Players[1].Cash; got != 1510 {
+		t.Errorf("utility owner cash = %d, want 1510", got)
+	}
+	if g.Debtor != 0 {
+		t.Errorf("debtor = %d, want 0", g.Debtor)
+	}
+	if g.TurnPhase == TurnAwaitingDebt {
+		t.Error("settle changed the phase before the checkpoint")
+	}
+	g.debtCheckpoint()
+	if g.TurnPhase != TurnAwaitingDebt || g.Current != 2 {
+		t.Fatalf("phase = %q current = %d, want awaiting_debt/2", g.TurnPhase, g.Current)
+	}
+	if err := g.Roll(2); err == nil {
+		t.Error("Roll(current) while foreign debt open = nil, want error")
+	}
+	if err := g.Mortgage(0, 39); err != nil {
+		t.Fatalf("Mortgage(foreign debtor) error = %v", err)
+	}
+	if g.Debtor != -1 || g.Current != 0 {
+		t.Errorf("after clearing: debtor = %d current = %d, want -1/0", g.Debtor, g.Current)
+	}
+}
+
+func TestAutoBankruptOnUndercoverableDebt(t *testing.T) {
+	g, _ := newTestGame(t, 2)
+	g.Players[0].Cash = 5 // no assets -> liquidation value 5
+	received := g.settle(0, map[int]int{1: 100})
+	if !g.Players[0].Bankrupt {
+		t.Error("undercoverable debtor was not eliminated automatically")
+	}
+	if received[1] != 100 || g.Players[1].Cash != 1600 {
+		t.Errorf("creditor received = %d cash = %d, want 100/1600", received[1], g.Players[1].Cash)
+	}
+	if g.Debtor != -1 || len(g.debtQueue) != 0 {
+		t.Errorf("debtor = %d queue = %v, want cleared", g.Debtor, g.debtQueue)
+	}
+	if g.Phase != PhaseFinished || g.Winner != 1 {
+		t.Errorf("phase = %q winner = %d, want finished/1", g.Phase, g.Winner)
+	}
+	if n := countEvents(g, "turn"); n != 0 {
+		t.Errorf("turn events = %d, want 0 (no completeTurn from elimination)", n)
+	}
+}
+
+func TestForeignDebtorGiveUp(t *testing.T) {
+	g, _ := newTestGame(t, 3)
+	g.Players[1].Cash = 5
+	g.Tiles[39].Owner = 1
+	g.settle(1, map[int]int{0: 100})
+	g.debtCheckpoint()
+	if g.Debtor != 1 || g.Current != 0 {
+		t.Fatalf("debtor = %d current = %d, want 1/0", g.Debtor, g.Current)
+	}
+	if err := g.Roll(0); err == nil {
+		t.Error("Roll(current) while debt open = nil, want error")
+	}
+	if err := g.Build(0, 1); err == nil {
+		t.Error("Build(current) while debt open = nil, want error")
+	}
+	if err := g.GiveUp(1); err != nil {
+		t.Fatalf("GiveUp(foreign debtor) error = %v", err)
+	}
+	if !g.Players[1].Bankrupt {
+		t.Error("debtor was not eliminated")
+	}
+	if g.Debtor != -1 {
+		t.Errorf("debtor after GiveUp = %d, want -1", g.Debtor)
+	}
+	if g.Current != 2 || g.TurnPhase != TurnAwaitingRoll {
+		t.Errorf("current = %d phase = %q, want 2/awaiting_roll", g.Current, g.TurnPhase)
+	}
+}
+
+func TestDebtConsumesExtraTurn(t *testing.T) {
+	g, _ := newTestGame(t, 3)
+	g.Decks[board.DeckChest].Draw = []string{"chest-hospital"} // pay 100
+	g.Players[0].Cash = 5
+	g.Tiles[39].Owner = 0 // coverable
+	setDice(g, 1, 1)      // double, lands on chest tile 2
+	if err := g.Roll(0); err != nil {
+		t.Fatalf("Roll() error = %v", err)
+	}
+	if g.Debtor != 0 || g.TurnPhase != TurnAwaitingDebt {
+		t.Fatalf("debtor = %d phase = %q, want 0/awaiting_debt", g.Debtor, g.TurnPhase)
+	}
+	if !g.extraTurn || g.Dice != [2]int{1, 1} {
+		t.Fatalf("extraTurn = %v dice = %v, want true/[1 1]", g.extraTurn, g.Dice)
+	}
+	if err := g.Mortgage(0, 39); err != nil {
+		t.Fatalf("Mortgage() error = %v", err)
+	}
+	if g.extraTurn {
+		t.Error("extra turn survived a settled debt")
+	}
+	if g.Current != 1 || g.TurnPhase != TurnAwaitingRoll {
+		t.Errorf("current = %d phase = %q, want 1/awaiting_roll (no reroll)", g.Current, g.TurnPhase)
+	}
+}
+
+func TestDebtFocusClearedOnSeatRemoval(t *testing.T) {
+	t.Run("focus debtor leaves", func(t *testing.T) {
+		g, _ := newTestGame(t, 3)
+		g.Players[1].Cash = 5
+		g.Tiles[39].Owner = 1
+		g.settle(1, map[int]int{0: 100})
+		g.debtCheckpoint()
+		if err := g.Leave(1); err != nil {
+			t.Fatalf("Leave(focus debtor) error = %v", err)
+		}
+		if g.Debtor != -1 || len(g.debtQueue) != 0 {
+			t.Errorf("debtor = %d queue = %v, want cleared", g.Debtor, g.debtQueue)
+		}
+		if g.Current != 2 || g.TurnPhase != TurnAwaitingRoll {
+			t.Errorf("current = %d phase = %q, want 2/awaiting_roll", g.Current, g.TurnPhase)
+		}
+		setDice(g, 1, 2)
+		if err := g.Roll(2); err != nil {
+			t.Errorf("Roll(current) after resume error = %v", err)
+		}
+	})
+	t.Run("queued debtor leaves", func(t *testing.T) {
+		g, _ := newTestGame(t, 4)
+		g.Players[1].Cash = 5
+		g.Players[2].Cash = 5
+		g.Tiles[39].Owner = 1
+		g.Tiles[37].Owner = 2
+		g.settle(1, map[int]int{0: 50})
+		g.settle(2, map[int]int{0: 50})
+		g.debtCheckpoint()
+		if err := g.Leave(2); err != nil {
+			t.Fatalf("Leave(queued debtor) error = %v", err)
+		}
+		if g.Debtor != 1 {
+			t.Errorf("debtor = %d, want 1", g.Debtor)
+		}
+		for _, q := range g.debtQueue {
+			if q == 2 {
+				t.Error("removed seat still in debt queue")
+			}
+		}
+		if g.TurnPhase != TurnAwaitingDebt {
+			t.Errorf("phase = %q, want awaiting_debt while focus remains", g.TurnPhase)
+		}
+		if err := g.Mortgage(1, 39); err != nil {
+			t.Fatalf("Mortgage(focus debtor) error = %v", err)
+		}
+		if g.Debtor != -1 || g.Current != 1 || g.TurnPhase != TurnAwaitingRoll {
+			t.Errorf("debtor = %d current = %d phase = %q, want -1/1/awaiting_roll",
+				g.Debtor, g.Current, g.TurnPhase)
+		}
+	})
+	t.Run("current leaves without debt", func(t *testing.T) {
+		g, _ := newTestGame(t, 3)
+		if err := g.Leave(0); err != nil {
+			t.Fatalf("Leave(current) error = %v", err)
+		}
+		if g.Current != 1 || g.TurnPhase != TurnAwaitingRoll || g.Debtor != -1 {
+			t.Errorf("current = %d phase = %q debtor = %d, want 1/awaiting_roll/-1",
+				g.Current, g.TurnPhase, g.Debtor)
+		}
+	})
+	t.Run("current leaves while another seat owes", func(t *testing.T) {
+		g, _ := newTestGame(t, 3)
+		g.Players[1].Cash = 5
+		g.Tiles[39].Owner = 1
+		g.settle(1, map[int]int{0: 100})
+		g.debtCheckpoint()
+		if err := g.Leave(0); err != nil {
+			t.Fatalf("Leave(current) error = %v", err)
+		}
+		if g.Current != 0 || g.Debtor != 1 || g.TurnPhase != TurnAwaitingDebt {
+			t.Fatalf("current = %d debtor = %d phase = %q, want 0/1/awaiting_debt",
+				g.Current, g.Debtor, g.TurnPhase)
+		}
+		if g.Pending != nil || !g.turnOver {
+			t.Errorf("pending = %+v turnOver = %v, want nil/true", g.Pending, g.turnOver)
+		}
+		if n := countEvents(g, "turn"); n != 0 {
+			t.Errorf("turn events = %d, want 0 (no completeTurn with open debt)", n)
+		}
+		if err := g.Mortgage(1, 39); err != nil {
+			t.Fatalf("Mortgage(debtor) error = %v", err)
+		}
+		if g.Debtor != -1 || g.Current != 1 || g.TurnPhase != TurnAwaitingRoll {
+			t.Errorf("debtor = %d current = %d phase = %q, want -1/1/awaiting_roll",
+				g.Debtor, g.Current, g.TurnPhase)
+		}
+		if n := countEvents(g, "turn"); n != 1 {
+			t.Errorf("turn events = %d, want exactly 1 resume", n)
+		}
+	})
+}
+
+func TestAutopilotGuardDuringDebt(t *testing.T) {
+	g, clock := newTestGame(t, 3)
+	enableAutopilot(t, g, 1, AutopilotSettings{BuyAlways: true})
+	g.Auction = &Auction{
+		Tile: 1, Bid: 20, Bidder: 0, MinBid: 20,
+		EndsAt: clock.Now().Add(-time.Second), // already expired
+	}
+	g.Players[1].Cash = 5
+	g.Tiles[39].Owner = 1
+	g.settle(1, map[int]int{0: 100})
+	g.debtCheckpoint() // the single autopilot stop for debt
+
+	off := lastEvent(g, "autopilot_off")
+	if off == nil || off.Player != 1 || off.Reason != AutopilotStopDebt {
+		t.Fatalf("autopilot_off = %+v, want player 1 with reason debt", off)
+	}
+	before := countEvents(g, "autopilot_off")
+	clock.Advance(16 * time.Second)
+	if g.Tick(clock.Now()) {
+		t.Error("Tick() during debt = true, want false")
+	}
+	if g.Auction == nil {
+		t.Error("expired auction was resolved during debt")
+	}
+	if n := countEvents(g, "autopilot_off"); n != before {
+		t.Errorf("autopilot_off events = %d, want %d (no second stop)", n, before)
+	}
+	if g.Players[1].Autopilot.Enabled {
+		t.Error("debtor autopilot still enabled")
 	}
 }

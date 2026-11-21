@@ -4,20 +4,21 @@ import "github.com/DT-Entertainment-Studios/subprime-game/backend/internal/board
 
 // PlayerView is the public view of a player.
 type PlayerView struct {
-	ID           string        `json:"id"`
-	Name         string        `json:"name"`
-	Color        string        `json:"color"`
-	Seat         int           `json:"seat"`
-	Cash         int           `json:"cash"`
-	Position     int           `json:"position"`
-	InJail       bool          `json:"inJail"`
-	JailAttempts int           `json:"jailAttempts"`
-	JailCards    int           `json:"jailCards"`
-	Bankrupt     bool          `json:"bankrupt"`
-	Connected    bool          `json:"connected"`
-	NetWorth     int           `json:"netWorth"`
-	Stats        Stats         `json:"stats"`
-	Autopilot    AutopilotView `json:"autopilot"`
+	ID               string        `json:"id"`
+	Name             string        `json:"name"`
+	Color            string        `json:"color"`
+	Seat             int           `json:"seat"`
+	Cash             int           `json:"cash"`
+	LiquidationValue int           `json:"liquidationValue"`
+	Position         int           `json:"position"`
+	InJail           bool          `json:"inJail"`
+	JailAttempts     int           `json:"jailAttempts"`
+	JailCards        int           `json:"jailCards"`
+	Bankrupt         bool          `json:"bankrupt"`
+	Connected        bool          `json:"connected"`
+	NetWorth         int           `json:"netWorth"`
+	Stats            Stats         `json:"stats"`
+	Autopilot        AutopilotView `json:"autopilot"`
 }
 
 // State is the full game state pushed to clients after every change.
@@ -28,6 +29,7 @@ type State struct {
 	Players   []PlayerView     `json:"players"`
 	Tiles     []TileState      `json:"tiles"`
 	Current   int              `json:"current"`
+	Debtor    int              `json:"debtor"`
 	TurnPhase TurnPhase        `json:"turnPhase"`
 	Dice      [2]int           `json:"dice"`
 	Doubles   int              `json:"doubles"`
@@ -55,20 +57,21 @@ func (g *Game) StateFor(viewer int) State {
 			autopilot.Config = &cfg
 		}
 		players[i] = PlayerView{
-			ID:           p.ID,
-			Name:         p.Name,
-			Color:        p.Color,
-			Seat:         p.Seat,
-			Cash:         p.Cash,
-			Position:     p.Position,
-			InJail:       p.InJail,
-			JailAttempts: p.JailAttempts,
-			JailCards:    len(p.JailCards),
-			Bankrupt:     p.Bankrupt,
-			Connected:    p.Connected,
-			NetWorth:     g.netWorth(i),
-			Stats:        p.Stats,
-			Autopilot:    autopilot,
+			ID:               p.ID,
+			Name:             p.Name,
+			Color:            p.Color,
+			Seat:             p.Seat,
+			Cash:             p.Cash,
+			LiquidationValue: g.liquidationValue(i),
+			Position:         p.Position,
+			InJail:           p.InJail,
+			JailAttempts:     p.JailAttempts,
+			JailCards:        len(p.JailCards),
+			Bankrupt:         p.Bankrupt,
+			Connected:        p.Connected,
+			NetWorth:         g.netWorth(i),
+			Stats:            p.Stats,
+			Autopilot:        autopilot,
 		}
 	}
 	tiles := make([]TileState, len(g.Tiles))
@@ -99,6 +102,7 @@ func (g *Game) StateFor(viewer int) State {
 		Players:   players,
 		Tiles:     tiles,
 		Current:   g.Current,
+		Debtor:    g.Debtor,
 		TurnPhase: g.TurnPhase,
 		Dice:      g.Dice,
 		Doubles:   g.Doubles,

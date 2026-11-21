@@ -34,6 +34,7 @@ function player(): Player {
 		color: 'blau',
 		seat: 0,
 		cash: 1500,
+		liquidationValue: 1500,
 		position: 0,
 		inJail: false,
 		jailAttempts: 0,
@@ -71,6 +72,7 @@ function game(mortgaged = false): GameState {
 			{ owner: -1, houses: 0, mortgaged: false }
 		],
 		current: 0,
+		debtor: -1,
 		turnPhase: 'awaiting_roll',
 		dice: [3, 4],
 		doubles: 0,
@@ -87,10 +89,32 @@ function gameWithLevels(tile1: number, tile2: number): GameState {
 	return g;
 }
 
+/** A debtor with a house, a mortgaged field and a free field to liquidate. */
+function debtorGame(): GameState {
+	const state = game();
+	state.tiles[1] = { owner: 0, houses: 1, mortgaged: false };
+	state.tiles[2] = { owner: 0, houses: 0, mortgaged: true };
+	state.board = [
+		...state.board,
+		{
+			index: 3,
+			name: 'Kanalgasse',
+			type: 'street',
+			group: 'hellblau',
+			price: 100,
+			rents: [6, 30, 90, 270, 400, 550],
+			build: 50,
+			sell: 70
+		}
+	];
+	state.tiles = [...state.tiles, { owner: 0, houses: 0, mortgaged: false }];
+	return state;
+}
+
 describe('EstatePanel', () => {
 	it('asks for confirmation before selling a field to the bank', async () => {
 		const onIntent = vi.fn();
-		render(EstatePanel, { game: game(), me: player(), isMyTurn: true, onIntent });
+		render(EstatePanel, { game: game(), me: player(), isMyTurn: true, isDebtor: false, onIntent });
 
 		await fireEvent.click(screen.getByRole('button', { name: /An Bank/ }));
 
@@ -106,7 +130,7 @@ describe('EstatePanel', () => {
 
 	it('keeps the field when the sale is cancelled', async () => {
 		const onIntent = vi.fn();
-		render(EstatePanel, { game: game(), me: player(), isMyTurn: true, onIntent });
+		render(EstatePanel, { game: game(), me: player(), isMyTurn: true, isDebtor: false, onIntent });
 
 		await fireEvent.click(screen.getByRole('button', { name: /An Bank/ }));
 		await fireEvent.click(screen.getByRole('button', { name: 'Abbrechen' }));
@@ -120,6 +144,7 @@ describe('EstatePanel', () => {
 			game: game(true),
 			me: player(),
 			isMyTurn: true,
+			isDebtor: false,
 			onIntent: () => {}
 		});
 
@@ -135,6 +160,7 @@ describe('EstatePanel', () => {
 			game: gameWithLevels(1, 0),
 			me: player(),
 			isMyTurn: true,
+			isDebtor: false,
 			onIntent: () => {}
 		});
 
@@ -147,6 +173,7 @@ describe('EstatePanel', () => {
 			game: game(),
 			me: player(),
 			isMyTurn: true,
+			isDebtor: false,
 			onIntent
 		});
 
@@ -155,7 +182,7 @@ describe('EstatePanel', () => {
 
 		const built = game();
 		built.tiles[2] = { owner: 0, houses: 1, mortgaged: false };
-		await rerender({ game: built, me: player(), isMyTurn: true, onIntent });
+		await rerender({ game: built, me: player(), isMyTurn: true, isDebtor: false, onIntent });
 
 		expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 		expect(onIntent).not.toHaveBeenCalled();
@@ -166,6 +193,7 @@ describe('EstatePanel', () => {
 			game: gameWithLevels(2, 1),
 			me: player(),
 			isMyTurn: true,
+			isDebtor: false,
 			onIntent: () => {}
 		});
 
@@ -180,6 +208,7 @@ describe('EstatePanel', () => {
 			game: gameWithLevels(5, 4),
 			me: player(),
 			isMyTurn: true,
+			isDebtor: false,
 			onIntent: () => {}
 		});
 
@@ -187,5 +216,29 @@ describe('EstatePanel', () => {
 		expect(buttons).toHaveLength(2);
 		expect(buttons[0]).toBeEnabled(); // tile 1, hotel (level 5, maximum)
 		expect(buttons[1]).toBeDisabled(); // tile 2, level 4
+	});
+
+	it('lets a debtor liquidate while another player holds the turn', () => {
+		render(EstatePanel, {
+			game: debtorGame(),
+			me: player(),
+			isMyTurn: false,
+			isDebtor: true,
+			onIntent: () => {}
+		});
+
+		expect(screen.getByRole('button', { name: 'Hypothek (50 GE)' })).toBeEnabled();
+		expect(screen.getByRole('button', { name: 'Haus verkaufen' })).toBeEnabled();
+		// Main's building-free-group rule still applies to debtors: tile 2 shares
+		// the braun group with tile 1's house. The clean hellblau field can still be
+		// liquidated out of turn.
+		expect(screen.getByRole('button', { name: 'An Bank (0 GE)' })).toBeDisabled();
+		expect(screen.getByRole('button', { name: 'An Bank (70 GE)' })).toBeEnabled();
+
+		const buildButtons = screen.getAllByRole('button', { name: /Bauen/ });
+		expect(buildButtons.length).toBeGreaterThan(0);
+		for (const button of buildButtons) expect(button).toBeDisabled();
+		expect(screen.getByRole('button', { name: /Ablösen/ })).toBeDisabled();
+		expect(screen.getByText(/darf Felder auch liquidieren/)).toBeInTheDocument();
 	});
 });

@@ -145,14 +145,18 @@ type TradeOffer struct {
 
 // Event is one entry of the append-only event log.
 type Event struct {
-	Seq    int        `json:"seq"`
-	Type   string     `json:"type"`
-	Player int        `json:"player"`
-	Reason string     `json:"reason,omitempty"`
-	Amount int        `json:"amount,omitempty"`
-	Text   string     `json:"text"`
-	Deck   board.Deck `json:"deck,omitempty"`
-	At     time.Time  `json:"at"`
+	Seq        int        `json:"seq"`
+	Type       string     `json:"type"`
+	Player     int        `json:"player"`
+	Reason     string     `json:"reason,omitempty"`
+	Amount     int        `json:"amount,omitempty"`
+	Text       string     `json:"text"`
+	Deck       board.Deck `json:"deck,omitempty"`
+	Cause      string     `json:"cause,omitempty"`
+	Debt       int        `json:"debt,omitempty"`
+	Realizable int        `json:"realizable,omitempty"`
+	Shortfall  int        `json:"shortfall,omitempty"`
+	At         time.Time  `json:"at"`
 }
 
 // DeckState is the draw pile of one card deck, top first.
@@ -181,6 +185,11 @@ type Game struct {
 	TurnPhase TurnPhase
 	Dice      [2]int
 	Doubles   int
+
+	// Debtor is the seat whose debt currently blocks the game (-1 = none).
+	// debtQueue holds further debtors in seat order; both are engine internals.
+	Debtor    int
+	debtQueue []int
 
 	Pending *PendingPurchase
 	Auction *Auction
@@ -228,6 +237,7 @@ func New(cat *board.Catalog, players []*Player, opts Options) (*Game, error) {
 		Tiles:           make([]TileState, len(cat.Tiles)),
 		Current:         0,
 		TurnPhase:       TurnAwaitingRoll,
+		Debtor:          -1,
 		Winner:          -1,
 		Decks:           map[board.Deck]*DeckState{},
 		rand:            random,
@@ -405,9 +415,22 @@ func IsRuleError(err error) bool {
 	return ok
 }
 
+// requireActor blocks every intent except the active debtor's own liquidation
+// while a debt is outstanding (Spec.md §4.10). All other seats, including the
+// player whose turn was interrupted, must wait until the focus is cleared.
+func (g *Game) requireActor(player int) error {
+	if g.Debtor >= 0 && player != g.Debtor {
+		return g.fail("debt_outstanding", "Erst müssen die Schulden beglichen werden.")
+	}
+	return nil
+}
+
 func (g *Game) requireTurn(player int) error {
 	if g.Phase != PhasePlaying {
 		return g.fail("game_over", "Das Spiel ist beendet.")
+	}
+	if err := g.requireActor(player); err != nil {
+		return err
 	}
 	if player != g.Current || !g.active(player) {
 		return g.fail("not_your_turn", "Du bist nicht am Zug.")

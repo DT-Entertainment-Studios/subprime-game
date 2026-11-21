@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { session } from './session.svelte';
-import type { ActiveRoom, RoomSnapshot } from './types';
+import type { ActiveRoom, GameState, Player, RoomSnapshot } from './types';
 
 const room = { code: 'ABCDEF', phase: 'lobby' } as RoomSnapshot;
 const activeRoom: ActiveRoom = { code: 'ABCDEF', phase: 'playing' };
@@ -30,6 +30,93 @@ beforeEach(() => {
 
 afterEach(() => {
 	vi.unstubAllGlobals();
+});
+
+function gamePlayer(id: string, seat: number, cash: number): Player {
+	return {
+		id,
+		name: id,
+		color: 'blau',
+		seat,
+		cash,
+		liquidationValue: cash,
+		position: 0,
+		inJail: false,
+		jailAttempts: 0,
+		jailCards: 0,
+		bankrupt: false,
+		connected: true,
+		netWorth: cash,
+		stats: {
+			rentCollected: 0,
+			rentPaid: 0,
+			propertiesBought: 0,
+			propertiesSold: 0,
+			housesBuilt: 0,
+			trades: 0
+		}
+	};
+}
+
+function gameWithDebt(current: number, debtor: number): GameState {
+	return {
+		phase: 'playing',
+		rules: {
+			minPlayers: 2,
+			maxPlayers: 8,
+			startingCash: 1500,
+			losSalary: 200,
+			jailFine: 50,
+			auctionSeconds: 15
+		},
+		board: [],
+		players: [gamePlayer('user-0', 0, -50), gamePlayer('user-1', 1, 1500)],
+		tiles: [],
+		current,
+		debtor,
+		turnPhase: 'awaiting_debt',
+		dice: [0, 0],
+		doubles: 0,
+		trades: [],
+		events: [],
+		winner: -1
+	};
+}
+
+function viewerRoom(viewerId: string, game: GameState): RoomSnapshot {
+	return {
+		...room,
+		you: { id: viewerId, name: viewerId, role: 'player', seat: 0, isHost: false },
+		game
+	};
+}
+
+describe('session.isDebtor', () => {
+	it('follows game.debtor, not game.current', () => {
+		session.room = viewerRoom('user-0', gameWithDebt(1, 0));
+
+		expect(session.isMyTurn).toBe(false);
+		expect(session.isDebtor).toBe(true);
+	});
+
+	it('is false when the current player is not the debtor', () => {
+		session.room = viewerRoom('user-0', gameWithDebt(0, 1));
+
+		expect(session.isMyTurn).toBe(true);
+		expect(session.isDebtor).toBe(false);
+	});
+
+	it('is false when no debtor is set', () => {
+		session.room = viewerRoom('user-0', gameWithDebt(0, -1));
+
+		expect(session.isDebtor).toBe(false);
+	});
+
+	it('is false without a game', () => {
+		session.room = room;
+
+		expect(session.isDebtor).toBe(false);
+	});
 });
 
 describe('session.leave', () => {

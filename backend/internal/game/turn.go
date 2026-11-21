@@ -50,6 +50,9 @@ func (g *Game) Roll(player int) error {
 	g.turnOver = false
 	g.moveForward(player, total, true)
 	g.resolveLanding(player, g.Players[player].Position, 0)
+	if g.debtCheckpoint() {
+		return nil
+	}
 	g.completeTurn()
 	return nil
 }
@@ -70,8 +73,12 @@ func (g *Game) JailOption(player int, option string) error {
 		if p.Cash < g.Rules.JailFine {
 			return g.fail("insufficient_cash", "Du kannst die Reparaturkosten nicht bezahlen.")
 		}
-		g.payBank(player, g.Rules.JailFine, "jail_fine", "%s zahlt %d GE Reparaturkosten.", p.Name, g.Rules.JailFine)
+		g.payBank(player, g.Rules.JailFine, PaymentCause{Code: "reparaturkosten"}, "jail_fine",
+			"%s zahlt %d GE Reparaturkosten.", p.Name, g.Rules.JailFine)
 		if g.Phase == PhaseFinished || p.Bankrupt || p.Cash < 0 {
+			if g.debtCheckpoint() {
+				return nil
+			}
 			g.completeTurn()
 			return nil
 		}
@@ -108,6 +115,9 @@ func (g *Game) attemptJailRoll(player int) {
 		g.turnOver = false
 		g.moveForward(player, total, true)
 		g.resolveLanding(player, p.Position, 0)
+		if g.debtCheckpoint() {
+			return
+		}
 		g.completeTurn()
 		return
 	}
@@ -115,14 +125,21 @@ func (g *Game) attemptJailRoll(player int) {
 	p.JailAttempts++
 	if p.JailAttempts >= 3 {
 		g.logf("jail", player, 0, "Dritter Fehlversuch: %s muss die Reparaturkosten von %d GE zahlen.", p.Name, g.Rules.JailFine)
-		g.payBank(player, g.Rules.JailFine, "jail_fine", "%s zahlt %d GE Reparaturkosten.", p.Name, g.Rules.JailFine)
+		g.payBank(player, g.Rules.JailFine, PaymentCause{Code: "reparaturkosten"}, "jail_fine",
+			"%s zahlt %d GE Reparaturkosten.", p.Name, g.Rules.JailFine)
 		if g.Phase == PhaseFinished || p.Bankrupt {
+			if g.debtCheckpoint() {
+				return
+			}
 			g.completeTurn()
 			return
 		}
 		g.leaveJail(player)
 		g.logf("jail_exit", player, 0, "%s kommt nach der Reparatur frei.", p.Name)
 		if p.Cash < 0 {
+			if g.debtCheckpoint() {
+				return
+			}
 			g.completeTurn()
 			return
 		}
@@ -130,6 +147,9 @@ func (g *Game) attemptJailRoll(player int) {
 		g.turnOver = false
 		g.moveForward(player, total, true)
 		g.resolveLanding(player, p.Position, 0)
+		if g.debtCheckpoint() {
+			return
+		}
 		g.completeTurn()
 		return
 	}
@@ -154,6 +174,9 @@ func (g *Game) normalRollAfterJail(player int) {
 	g.turnOver = false
 	g.moveForward(player, total, true)
 	g.resolveLanding(player, g.Players[player].Position, 0)
+	if g.debtCheckpoint() {
+		return
+	}
 	g.completeTurn()
 }
 
@@ -230,10 +253,10 @@ func (g *Game) landTax(player int, t board.Tile) {
 	name := g.Players[player].Name
 	if t.TaxPercent > 0 {
 		amount := g.Players[player].Cash * t.TaxPercent / 100
-		g.payBank(player, amount, "tax", "%s zahlt %d GE %s (%d %% des Bargelds).", name, amount, t.Name, t.TaxPercent)
+		g.payBank(player, amount, PaymentCause{Code: "steuer"}, "tax", "%s zahlt %d GE %s (%d %% des Bargelds).", name, amount, t.Name, t.TaxPercent)
 		return
 	}
-	g.payBank(player, t.Tax, "tax", "%s zahlt %d GE %s.", name, t.Tax, t.Name)
+	g.payBank(player, t.Tax, PaymentCause{Code: "steuer"}, "tax", "%s zahlt %d GE %s.", name, t.Tax, t.Name)
 }
 
 // landProperty resolves a landing on an ownable tile with the normal rent
@@ -334,6 +357,9 @@ func (g *Game) EndTurn(player int) error {
 	if err := g.requireTurn(player); err != nil {
 		return err
 	}
+	if g.Debtor >= 0 || g.inDebt(player) {
+		return g.fail("in_debt", "Begleiche zuerst deine Schulden.")
+	}
 	if g.Pending != nil || g.Auction != nil {
 		return g.fail("wrong_phase", "Es steht noch eine Entscheidung aus.")
 	}
@@ -341,13 +367,18 @@ func (g *Game) EndTurn(player int) error {
 	return nil
 }
 
-// completeTurn advances the turn or grants the extra roll for a double.
+// completeTurn advances the turn or grants the extra roll for a double. It is
+// only reached with no open debt focus: debts pause at the preceding checkpoint
+// and resume through advanceDebtFocus, so an interrupted turn is never lost.
 func (g *Game) completeTurn() {
 	if g.Phase != PhasePlaying {
 		g.TurnPhase = TurnFinished
 		return
 	}
 	if g.inDebt(g.Current) {
+		if g.Debtor < 0 {
+			g.Debtor = g.Current
+		}
 		g.TurnPhase = TurnAwaitingDebt
 		return
 	}
@@ -384,11 +415,16 @@ func (g *Game) advanceTurn() {
 		}
 	}
 	if g.inDebt(g.Current) {
+		g.Debtor = g.Current
 		g.TurnPhase = TurnAwaitingDebt
-	} else if g.Players[g.Current].InJail {
-		g.TurnPhase = TurnAwaitingJail
 	} else {
-		g.TurnPhase = TurnAwaitingRoll
+		// A debt focus must never linger on a seat that is no longer active.
+		g.Debtor = -1
+		if g.Players[g.Current].InJail {
+			g.TurnPhase = TurnAwaitingJail
+		} else {
+			g.TurnPhase = TurnAwaitingRoll
+		}
 	}
 	g.logf("turn", g.Current, 0, "%s ist am Zug.", g.Players[g.Current].Name)
 	g.armAutopilot(g.Current)

@@ -5,6 +5,7 @@
 	import type { GameEvent, GameState, Player } from '#lib/types';
 	import { preferences } from '#lib/prefs.svelte';
 	import CardToast from './CardToast.svelte';
+	import BankruptcyToast from './BankruptcyToast.svelte';
 
 	let { game, me = null }: { game: GameState; me?: Player | null } = $props();
 
@@ -20,11 +21,20 @@
 	let dismissed = $state<Set<number>>(new Set());
 	let draws = $state<CardDraw[]>([]);
 
+	// Automatic bankruptcies use the same dock but their own bookkeeping: they
+	// are never suppressed and there is exactly one notice per player.
+	let seenBankruptcy = $state<Set<number>>(new Set());
+	let dismissedBankruptcy = $state<Set<number>>(new Set());
+	let bankruptcies = $state<GameEvent[]>([]);
+
 	const suppress = $derived(
 		me?.autopilot?.active === true && preferences.current.hideCards === true
 	);
 	const open = $derived(
 		suppress ? [] : draws.filter((draw) => !dismissed.has(draw.event.seq))
+	);
+	const openBank = $derived(
+		bankruptcies.filter((event) => !dismissedBankruptcy.has(event.seq))
 	);
 
 	// A card draw is followed by its effect events until the turn moves on or the
@@ -46,10 +56,28 @@
 		const events = game.events;
 		if (!baselineDone) {
 			seen = new Set(events.map((event) => event.seq));
+			seenBankruptcy = new Set(events.map((event) => event.seq));
 			baselineDone = true;
 			return;
 		}
 		if (suppress && draws.length > 0) draws = [];
+
+		// One notice per bankrupt player. The local set also deduplicates when
+		// several events for the same seat arrive in a single snapshot.
+		const playersThisRound = new Set<number>();
+		const freshBank = events.filter((event) => {
+			if (event.type !== 'bankruptcy' || event.cause === undefined) return false;
+			if (seenBankruptcy.has(event.seq)) return false;
+			if (bankruptcies.some((b) => b.player === event.player)) return false;
+			if (playersThisRound.has(event.player)) return false;
+			playersThisRound.add(event.player);
+			return true;
+		});
+		if (freshBank.length > 0) {
+			seenBankruptcy = new Set([...seenBankruptcy, ...freshBank.map((event) => event.seq)]);
+			bankruptcies = [...bankruptcies, ...freshBank];
+		}
+
 		const fresh = events.filter((event) => event.type === 'card' && !seen.has(event.seq));
 		if (fresh.length === 0) return;
 		seen = new Set([...seen, ...fresh.map((event) => event.seq)]);
@@ -60,10 +88,17 @@
 	function dismiss(seq: number) {
 		dismissed = new Set(dismissed).add(seq);
 	}
+
+	function dismissBankruptcy(seq: number) {
+		dismissedBankruptcy = new Set(dismissedBankruptcy).add(seq);
+	}
 </script>
 
-{#if open.length > 0}
+{#if open.length > 0 || openBank.length > 0}
 	<div class="notice-stack">
+		{#each openBank as event (event.seq)}
+			<BankruptcyToast {event} player={game.players[event.player]} onDismiss={dismissBankruptcy} />
+		{/each}
 		{#each open as draw (draw.event.seq)}
 			<CardToast {draw} {me} drawer={game.players[draw.event.player]} onDismiss={dismiss} />
 		{/each}

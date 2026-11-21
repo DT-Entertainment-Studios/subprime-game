@@ -16,11 +16,13 @@
 		game,
 		me,
 		isMyTurn,
+		isDebtor,
 		onIntent
 	}: {
 		game: GameState;
 		me: Player;
 		isMyTurn: boolean;
+		isDebtor: boolean;
 		onIntent: (intent: Intent) => void;
 	} = $props();
 
@@ -41,7 +43,8 @@
 	const pendingTile = $derived(pendingSale === null ? null : game.board[pendingSale]);
 
 	// Drop the popup as soon as the sale is no longer possible (turn change,
-	// houses built, field traded away).
+	// debt settled, houses built, field traded away). A debtor may liquidate
+	// even while another player holds the turn.
 	$effect(() => {
 		if (pendingSale === null) return;
 		const state = game.tiles[pendingSale];
@@ -143,7 +146,7 @@
 	}
 
 	function canSell(index: number): boolean {
-		if (!isMyTurn) return false;
+		if (!isMyTurn && !isDebtor) return false;
 		const tile = game.board[index];
 		const state = game.tiles[index];
 		if (!tile.build || state.houses === 0) return false;
@@ -153,7 +156,7 @@
 	}
 
 	function canMortgage(index: number): boolean {
-		if (!isMyTurn) return false;
+		if (!isMyTurn && !isDebtor) return false;
 		const tile = game.board[index];
 		const state = game.tiles[index];
 		if (state.mortgaged || state.houses > 0) return false;
@@ -161,7 +164,7 @@
 	}
 
 	function canSellToBank(index: number): boolean {
-		if (!isMyTurn) return false;
+		if (!isMyTurn && !isDebtor) return false;
 		const tile = game.board[index];
 		const state = game.tiles[index];
 		if (state.houses > 0) return false;
@@ -176,9 +179,10 @@
 
 <div class="estate">
 	<p class="muted hint">
-		Bauen ist nur in deinem Zug vor dem Würfeln möglich. Hypotheken und Verkäufe sind auch
-		während einer Kaufentscheidung, bei Schulden oder in der Werkstatt erlaubt, um genug Geld
-		zu beschaffen.
+		Bauen und Ablösen sind nur im eigenen Zug vor dem Würfeln möglich. Hypotheken und Verkäufe
+		sind auch während einer Kaufentscheidung, bei Schulden oder in der Werkstatt erlaubt. Wer
+		Schulden hat, darf Felder auch liquidieren, wenn eine andere Spielerin am Zug ist. Das Spiel
+		bleibt blockiert, bis alle Schulden beglichen sind.
 	</p>
 	{#if owned.length === 0}
 		<p class="muted">Du besitzt noch keine Felder.</p>

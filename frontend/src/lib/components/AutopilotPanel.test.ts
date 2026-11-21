@@ -55,6 +55,7 @@ function player(seat: number, overrides: Partial<Player> = {}): Player {
 		color: seat === 0 ? 'blau' : 'rot',
 		seat,
 		cash: 1500,
+		liquidationValue: 1500,
 		position: 0,
 		inJail: false,
 		jailAttempts: 0,
@@ -110,6 +111,7 @@ function game(overrides: Partial<GameState> = {}): GameState {
 			{ owner: 1, houses: 0, mortgaged: false }
 		],
 		current: 0,
+		debtor: -1,
 		turnPhase: 'awaiting_roll',
 		dice: [3, 4],
 		doubles: 0,

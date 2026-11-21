@@ -353,6 +353,123 @@ func TestForfeitIntentRejectsDebtPhase(t *testing.T) {
 	}
 }
 
+func TestRoomDebtAuthorization(t *testing.T) {
+	m := newTestManager(t)
+	r, _ := startGameWithClients(t, m, "host", "guest", "third")
+	snap := r.Snapshot("host")
+	if snap.Game == nil {
+		t.Fatal("no game state")
+	}
+	currentIdx := snap.Game.Current
+	currentID := snap.Game.Players[currentIdx].ID
+	debtorIdx := (currentIdx + 1) % len(snap.Game.Players)
+	debtorID := snap.Game.Players[debtorIdx].ID
+	thirdID := ""
+	for _, id := range []string{"host", "guest", "third"} {
+		if id != currentID && id != debtorID {
+			thirdID = id
+		}
+	}
+
+	// A foreign debtor with coverable assets blocks the whole room.
+	r.mu.Lock()
+	r.game.Players[debtorIdx].Cash = -5
+	r.game.Tiles[39].Owner = debtorIdx
+	r.game.Debtor = debtorIdx
+	r.game.TurnPhase = game.TurnAwaitingDebt
+	r.mu.Unlock()
+
+	ap := &game.AutopilotSettings{Enabled: true}
+	wantRoomError(t, r.HandleIntent(currentID, Intent{Type: "roll"}), 403, "debt_outstanding")
+	wantRoomError(t, r.HandleIntent(currentID, Intent{Type: "mortgage", Tile: 39}), 403, "debt_outstanding")
+	if err := r.HandleIntent(currentID, Intent{Type: "set_autopilot", Autopilot: ap}); err != nil {
+		t.Errorf("set_autopilot during debt error = %v", err)
+	}
+	wantRoomError(t, r.HandleIntent(thirdID, Intent{Type: "bid", Amount: 20}), 403, "debt_outstanding")
+	wantRoomError(t, r.HandleIntent(debtorID, Intent{Type: "bid", Amount: 20}), 403, "debt_outstanding")
+	wantRoomError(t, r.HandleIntent(debtorID, Intent{Type: "build", Tile: 1}), 403, "debt_outstanding")
+
+	// Only the debtor may liquidate, even out of turn.
+	if err := r.HandleIntent(debtorID, Intent{Type: "mortgage", Tile: 39}); err != nil {
+		t.Fatalf("mortgage by debtor error = %v", err)
+	}
+	after := r.Snapshot("host")
+	if after.Game.Debtor != -1 {
+		t.Errorf("debtor = %d, want -1", after.Game.Debtor)
+	}
+	if view := playerView(t, r, debtorID); view.Cash < 0 {
+		t.Errorf("debtor cash = %d, want non-negative", view.Cash)
+	}
+	// The interrupted turn resumes and the active seat may act again.
+	after = r.Snapshot("host")
+	newCurrentID := after.Game.Players[after.Game.Current].ID
+	if err := r.HandleIntent(newCurrentID, Intent{Type: "roll"}); err != nil {
+		t.Errorf("roll after debt cleared error = %v", err)
+	}
+}
+
+func TestSetAutopilotAllowedDuringDebt(t *testing.T) {
+	m := newTestManager(t)
+	r, _ := startGameWithClients(t, m, "host", "guest", "third")
+	snap := r.Snapshot("host")
+	if snap.Game == nil {
+		t.Fatal("no game state")
+	}
+	currentIdx := snap.Game.Current
+	currentID := snap.Game.Players[currentIdx].ID
+	debtorIdx := (currentIdx + 1) % len(snap.Game.Players)
+	debtorID := snap.Game.Players[debtorIdx].ID
+	thirdID := ""
+	for _, id := range []string{"host", "guest", "third"} {
+		if id != currentID && id != debtorID {
+			thirdID = id
+		}
+	}
+
+	// A foreign debtor with coverable assets blocks the whole room.
+	r.mu.Lock()
+	r.game.Players[debtorIdx].Cash = -5
+	r.game.Tiles[39].Owner = debtorIdx
+	r.game.Debtor = debtorIdx
+	r.game.TurnPhase = game.TurnAwaitingDebt
+	r.mu.Unlock()
+
+	// Every active seat, including the debtor and players out of turn, may
+	// change its own autopilot configuration while the debt is open.
+	for i, id := range []string{currentID, debtorID, thirdID} {
+		settings := game.AutopilotSettings{
+			Enabled:   true,
+			BuyAlways: true,
+			Jail:      game.AutopilotJailNone,
+			Liquidity: 10 + i,
+		}
+		if err := r.HandleIntent(id, Intent{Type: "set_autopilot", Autopilot: &settings}); err != nil {
+			t.Fatalf("set_autopilot by %q during debt error = %v", id, err)
+		}
+		view := playerView(t, r, id)
+		if !view.Autopilot.Active {
+			t.Errorf("%q active = false, want true", id)
+		}
+		cfg := view.Autopilot.Config
+		if cfg == nil {
+			t.Fatalf("%q config = nil, want the full configuration", id)
+		}
+		if !cfg.Enabled {
+			t.Errorf("%q config enabled = false, want true", id)
+		}
+		if cfg.Liquidity != 10+i {
+			t.Errorf("%q config liquidity = %d, want %d", id, cfg.Liquidity, 10+i)
+		}
+	}
+
+	// The debt stays open and other intents remain blocked.
+	if after := r.Snapshot("host"); after.Game.Debtor != debtorIdx {
+		t.Errorf("debtor = %d, want %d", after.Game.Debtor, debtorIdx)
+	}
+	wantRoomError(t, r.HandleIntent(currentID, Intent{Type: "roll"}), 403, "debt_outstanding")
+	wantRoomError(t, r.HandleIntent(thirdID, Intent{Type: "propose_trade", Trade: &game.TradeInput{To: currentIdx, OfferCash: 20, RequestCash: 10}}), 403, "debt_outstanding")
+}
+
 func TestCounterTradeOutOfTurn(t *testing.T) {
 	m := newTestManager(t)
 	r, _ := m.Create("host", "Anna", "")

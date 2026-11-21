@@ -66,6 +66,8 @@ export interface Player {
 	color: string;
 	seat: number;
 	cash: number;
+	/** Liquidation value: maximum cash raisable by liquidating all assets (cash + buildings + sale values). */
+	liquidationValue: number;
 	position: number;
 	inJail: boolean;
 	jailAttempts: number;
@@ -131,6 +133,14 @@ export interface GameEvent {
 	deck?: 'ereignisfeld' | 'gemeinschaftsfeld';
 	/** Set on autopilot_off events: why the autopilot stopped. */
 	reason?: string;
+	/** Set on structured bankruptcy events: stable cause code, see BANKRUPTCY_CAUSE_LABELS. */
+	cause?: string;
+	/** Debt at the moment of bankruptcy (= -cash). */
+	debt?: number;
+	/** Realizable part of the liquidation value before liquidation (= liquidationValue - cash). */
+	realizable?: number;
+	/** Shortfall after full liquidation (= -liquidationValue). */
+	shortfall?: number;
 	at: string;
 }
 
@@ -151,6 +161,8 @@ export interface GameState {
 	players: Player[];
 	tiles: TileState[];
 	current: number;
+	/** Seat index currently settling a debt, -1 if none. */
+	debtor: number;
 	turnPhase: TurnPhase;
 	dice: [number, number];
 	doubles: number;

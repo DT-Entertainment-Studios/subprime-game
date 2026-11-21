@@ -32,6 +32,13 @@ class Session {
 		return room.game.players[room.game.current]?.id === room.you.id;
 	}
 
+	/** True when the viewer is the seat currently settling a debt (may be out of turn). */
+	get isDebtor(): boolean {
+		const room = this.room;
+		if (!room?.game || room.game.debtor < 0) return false;
+		return room.game.players[room.game.debtor]?.id === room.you.id;
+	}
+
 	get me() {
 		const room = this.room;
 		if (!room?.game || room.you.seat < 0) return null;

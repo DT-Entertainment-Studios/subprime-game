@@ -182,19 +182,19 @@ func (g *Game) disableAutopilotSilently(player int) {
 }
 
 // tickAutopilot resolves expired auctions and runs at most one autopilot
-// action. It reports whether a broadcast is needed.
+// action. It reports whether a broadcast is needed. While a debt is open the
+// whole game is blocked: no auction is resolved and no action is taken, so the
+// invariant that no turn completes with an open debt cannot be broken here.
 func (g *Game) tickAutopilot(now time.Time) bool {
+	if g.Debtor >= 0 {
+		return false
+	}
 	if g.Auction != nil {
 		if now.Before(g.Auction.EndsAt) {
 			return false
 		}
 		g.resolveAuction()
 		return true
-	}
-	if g.TurnPhase == TurnAwaitingDebt {
-		p := g.Players[g.Current]
-		text := fmt.Sprintf("%s schaltet den Autopilot aus: Schulden müssen beglichen werden.", p.Name)
-		return g.stopAutopilot(g.Current, AutopilotStopDebt, text)
 	}
 	p := g.Players[g.Current]
 	if !p.Autopilot.Enabled {

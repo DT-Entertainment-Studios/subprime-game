@@ -48,7 +48,7 @@
 		<p class="muted">Noch keine Ereignisse.</p>
 	{/if}
 	{#each ordered as event (event.seq)}
-		<div class="entry">
+		<div class="entry" class:bankrupt={event.type === 'bankruptcy'}>
 			<span class="time">{formatTime(event.at)}</span>
 			<span class="text">{event.text}</span>
 			{#if event.amount}
@@ -81,6 +81,13 @@
 
 	.entry:nth-child(odd) {
 		background: var(--md-sys-color-surface-container-low);
+	}
+
+	/* Bankruptcy lines override the zebra tint; declared after :nth-child so the
+	   equal-specificity rule wins (Spec.md §4.3). */
+	.entry.bankrupt {
+		background: var(--md-sys-color-error-container);
+		color: var(--md-sys-color-on-error-container);
 	}
 
 	.time {

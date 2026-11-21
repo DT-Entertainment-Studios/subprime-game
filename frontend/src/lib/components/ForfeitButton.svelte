@@ -2,6 +2,10 @@
 	// Voluntary forfeit ("Aufgeben") during the player's own turn, next to
 	// "Verlassen" in the room topbar. The two-step confirmation keeps the intent
 	// from firing on a misclick; the engine decides whether it is allowed.
+	// This is not the debt exit: an open debt blocks the whole game immediately,
+	// and the debtor settles it (or gives up) from the debt panel, even out of
+	// turn. A debt beyond full liquidation ends in automatic bankruptcy, so no
+	// manual giving-up is needed there.
 	import type { Intent, Phase, Player, TurnPhase } from '#lib/types';
 
 	let {
@@ -19,8 +23,8 @@
 	} = $props();
 
 	// Mirrors the whitelist of the engine's Game.Forfeit (Spec.md §4.10): a running
-	// game, own turn only, and never in the debt phase (that keeps its own debt
-	// panel) or during an auction. Keep both lists in sync.
+	// game, own turn only, and never in the global debt phase (that keeps its own
+	// debt panel) or during an auction. Keep both lists in sync.
 	const FORFEIT_PHASES: TurnPhase[] = ['awaiting_roll', 'awaiting_purchase', 'awaiting_jail'];
 	const canForfeit = $derived(
 		phase === 'playing' &&
@@ -101,6 +105,10 @@
 			<p id="forfeit-consequence">
 				Wirklich aufgeben? Du scheidest endgültig aus dem Spiel aus und verlierst. Gebäude und
 				Felder gehen an die Bank; offene Handelsangebote verfallen.
+			</p>
+			<p class="muted">
+				Bei Schulden nutzt der Schuldner das Schuldenpanel – auch wenn eine andere Spielerin am
+				Zug ist. Reicht der komplette Liquidationswert nicht, scheidet er automatisch aus.
 			</p>
 			{#if turnPhase === 'awaiting_purchase'}
 				<p class="muted">Das offene Kaufangebot verfällt.</p>

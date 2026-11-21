@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { GameState, KickVote, Player } from '#lib/types';
 	import { formatMoney, tokenColor } from '#lib/format';
+	import { bankruptcyFor, bankruptcyTooltip } from '#lib/bankruptcy';
 	import CarIcon from './CarIcon.svelte';
 	import IconTool from '@tabler/icons-svelte/icons/tool';
 	import IconTicket from '@tabler/icons-svelte/icons/ticket';
@@ -22,6 +23,7 @@
 <ul class="players">
 	{#each game.players as player (player.id)}
 		{@const vote = kickVotes.find((entry) => entry.userId === player.id)}
+		{@const bust = player.bankrupt ? bankruptcyFor(game.events, player.seat) : undefined}
 		{@const needed = game.players.filter(
 			(p) => p.id !== player.id && p.connected && !p.bankrupt
 		).length}
@@ -64,7 +66,7 @@
 						>
 					{/if}
 				{/if}
-				{#if player.bankrupt}<span class="badge">bankrott</span>{/if}
+				{#if player.bankrupt}<span class="badge" title={bust ? bankruptcyTooltip(bust) : 'Aus dem Spiel ausgeschieden'}>pleite</span>{/if}
 			</span>
 			<span class="cash" class:negative={player.cash < 0}>{formatMoney(player.cash)}</span>
 		</li>

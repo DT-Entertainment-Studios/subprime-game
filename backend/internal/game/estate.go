@@ -12,8 +12,15 @@ func (g *Game) requireEstateWindow(player int) error {
 // requireMoneyWindow allows selling assets in the normal pre-turn window, while
 // the active player is settling a debt, while they decide on a purchase they
 // cannot afford yet (Spec.md §4.4), and while they are choosing a jail option
-// so they can raise the repair costs (Spec.md §4.10).
+// so they can raise the repair costs (Spec.md §4.10). The focused debtor may
+// also liquidate out of turn while the game waits in the debt phase.
 func (g *Game) requireMoneyWindow(player int) error {
+	if err := g.requireActor(player); err != nil {
+		return err
+	}
+	if player == g.Debtor && g.TurnPhase == TurnAwaitingDebt {
+		return nil
+	}
 	if err := g.requireTurn(player); err != nil {
 		return err
 	}

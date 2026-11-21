@@ -903,11 +903,13 @@ func TestAutopilotDebtStops(t *testing.T) {
 	g, clock := newTestGame(t, 2)
 	enableAutopilot(t, g, 0, AutopilotSettings{BuyAlways: true})
 	g.Players[0].Cash = -10
-	g.TurnPhase = TurnAwaitingDebt
+	g.Debtor = 0
+	g.debtCheckpoint() // the single stop point for debt
 	tiles := slices.Clone(g.Tiles)
 
-	if !g.Tick(clock.Now()) {
-		t.Fatal("Tick() during debt = false, want true")
+	// The tick guard blocks every autopilot action while the debt is open.
+	if g.Tick(clock.Now()) {
+		t.Fatal("Tick() during debt = true, want false")
 	}
 	if g.Players[0].Autopilot.Enabled {
 		t.Error("autopilot still enabled during debt")

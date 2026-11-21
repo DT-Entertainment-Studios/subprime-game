@@ -524,6 +524,28 @@ func (r *Room) applyLocked(userID string, in Intent) error {
 	if idx < 0 {
 		return forbidden("spectator", "Zuschauer können nicht eingreifen.")
 	}
+	// While a debt is open the whole game is blocked. Only the focused debtor
+	// may liquidate assets or give up, including out of turn. The engine applies
+	// the same rule as a second line of defence. Autopilot configuration stays
+	// changeable for every seat, but the autopilot run itself remains paused
+	// until the debt is settled.
+	if r.game.Debtor >= 0 {
+		if idx == r.game.Debtor {
+			switch in.Type {
+			case "sell_building":
+				return r.game.SellBuilding(idx, in.Tile)
+			case "mortgage":
+				return r.game.Mortgage(idx, in.Tile)
+			case "sell_to_bank":
+				return r.game.SellToBank(idx, in.Tile)
+			case "give_up":
+				return r.game.GiveUp(idx)
+			}
+		}
+		if in.Type != "set_autopilot" {
+			return forbidden("debt_outstanding", "Erst müssen die Schulden beglichen werden.")
+		}
+	}
 	// Trades are allowed out of turn as well: the engine validates them (a trade
 	// that involves the active player is only allowed before rolling).
 	switch in.Type {

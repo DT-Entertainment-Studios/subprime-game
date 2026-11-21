@@ -220,7 +220,8 @@
 				<li>Vor dem Würfeln bauen und handeln, danach Feld auswerten.</li>
 				<li>Abgelehnte Felder werden versteigert (Gebote in 20er-Schritten).</li>
 				<li>Karten zahlen an die Bank; nur zwei Klassiker bewegen Geld zwischen Spielern.</li>
-				<li>Reicht das Geld nicht, gehst du ins Minus und musst Felder beleihen oder verkaufen. Aufgeben kannst du in deinem Zug über die Kopfzeile oder bei Schulden – jeweils mit Bestätigung.</li>
+				<li>Auktionsgebote dürfen bis zu deinem Liquidationswert gehen (Bargeld plus Verkaufs- und Hypothekenwerte). Gewinnst du über dein Bargeld hinaus, stehst du sofort in der Schuldenphase.</li>
+				<li>Schulden blockieren das Spiel für alle, auch wenn der Schuldner nicht am Zug ist. Er liquidiert Felder, bis das Konto wieder stimmt; reicht der Liquidationswert nicht, scheidet er automatisch aus. Aufgeben geht bei Schulden über das Schuldenpanel, sonst im eigenen Zug über die Kopfzeile – jeweils mit Bestätigung.</li>
 				<li>Wer ausscheidet, ist raus – wer zuletzt übrig bleibt, gewinnt.</li>
 			</ul>
 		</section>

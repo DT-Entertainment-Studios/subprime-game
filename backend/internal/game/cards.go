@@ -61,7 +61,8 @@ func (g *Game) drawAndApply(player int, deck board.Deck, depth int) {
 		g.credit(player, card.Amount)
 		g.logf("payout", player, card.Amount, "Die Bank zahlt %s %d GE.", g.Players[player].Name, card.Amount)
 	case board.EffectBankPayment:
-		g.payBank(player, card.Amount, "payment", "%s zahlt %d GE an die Bank.", g.Players[player].Name, card.Amount)
+		g.payBank(player, card.Amount, PaymentCause{Code: "kartenzahlung"}, "payment",
+			"%s zahlt %d GE an die Bank.", g.Players[player].Name, card.Amount)
 	case board.EffectPayEachPlayer:
 		claims := map[int]int{}
 		for i := range g.Players {
@@ -70,20 +71,23 @@ func (g *Game) drawAndApply(player int, deck board.Deck, depth int) {
 			}
 		}
 		g.logf("payment", player, card.Amount*len(claims), "%s zahlt jedem Mitspieler %d GE.", g.Players[player].Name, card.Amount)
-		g.settle(player, claims)
+		g.settle(player, claims, PaymentCause{Code: "zahlung_an_alle"})
 	case board.EffectCollectFromEachPlayer:
 		for i := range g.Players {
 			if i == player || !g.active(i) || g.Phase != PhasePlaying {
 				continue
 			}
-			g.settle(i, map[int]int{player: card.Amount})
+			g.settle(i, map[int]int{player: card.Amount},
+				PaymentCause{Code: "beitreibung", Creditor: "an " + g.Players[player].Name})
 			g.logf("payout", i, card.Amount, "%s schenkt %s %d GE.", g.Players[i].Name, g.Players[player].Name, card.Amount)
 		}
 	case board.EffectPayPerHouse:
 		houses, hotels := g.buildingCounts(player)
 		amount := houses*card.Amount + hotels*card.PerHotel
 		if amount > 0 {
-			g.payBank(player, amount, "payment", "%s zahlt %d GE für %d Häuser und %d Hotels.", g.Players[player].Name, amount, houses, hotels)
+			g.payBank(player, amount, PaymentCause{Code: "kartenreparatur"}, "payment",
+				"%s zahlt %d GE für %d Häuser und %d Hotels.",
+				g.Players[player].Name, amount, houses, hotels)
 		}
 	case board.EffectNextTankstelle:
 		g.advanceToNext(player, board.TypeTankstelle, depth)

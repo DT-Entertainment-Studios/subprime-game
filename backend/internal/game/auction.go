@@ -20,9 +20,14 @@ func (g *Game) startAuction(tile int) {
 
 // Bid places an auction bid. Bids must be positive multiples of 20 and exceed
 // the current bid; the first bid is not required to reach the catalog price.
+// The limit is the bidder's full liquidation value, not just their cash: a winning bid
+// above cash sends them into the debt phase (Spec.md §4.4).
 func (g *Game) Bid(player, amount int) error {
 	if g.Phase != PhasePlaying {
 		return g.fail("game_over", "Das Spiel ist beendet.")
+	}
+	if err := g.requireActor(player); err != nil {
+		return err
 	}
 	if g.Auction == nil {
 		return g.fail("wrong_phase", "Es läuft keine Auktion.")
@@ -44,7 +49,7 @@ func (g *Game) Bid(player, amount int) error {
 	} else if amount <= a.Bid {
 		return g.fail("invalid_bid", "Das Gebot muss über %d GE liegen.", a.Bid)
 	}
-	if g.Players[player].Cash < amount {
+	if g.liquidationValue(player) < amount {
 		return g.fail("insufficient_cash", "Du kannst dieses Gebot nicht bezahlen.")
 	}
 	now := g.clock()
@@ -56,7 +61,9 @@ func (g *Game) Bid(player, amount int) error {
 	return nil
 }
 
-// resolveAuction settles an expired auction.
+// resolveAuction settles an expired auction. The winner always gets the tile,
+// even when cash goes negative; registerDebt is the only insolvency gate and
+// either pauses the game at the next checkpoint or declares bankruptcy.
 func (g *Game) resolveAuction() {
 	a := g.Auction
 	if a == nil {
@@ -65,6 +72,9 @@ func (g *Game) resolveAuction() {
 	g.Auction = nil
 	if a.Bidder == Bank {
 		g.logf("auction_end", Bank, 0, "Niemand bietet auf %s; das Feld bleibt bei der Bank.", g.tile(a.Tile).Name)
+		if g.debtCheckpoint() {
+			return
+		}
 		g.completeTurn()
 		return
 	}
@@ -75,17 +85,16 @@ func (g *Game) resolveAuction() {
 		price = a.Bid * 120 / 100
 	}
 	pl := g.Players[winner]
-	if pl.Cash < price {
-		g.logf("auction_end", winner, 0, "%s kann den Zuschlag nicht bezahlen.", pl.Name)
-		g.completeTurn()
-		return
-	}
 	pl.Cash -= price
 	g.Tiles[a.Tile] = TileState{Owner: winner}
 	pl.Stats.PropertiesBought++
 	g.logf("auction_end", winner, price, "%s ersteigert %s für %d GE.", pl.Name, g.tile(a.Tile).Name, price)
 	if doubled {
 		g.logf("double_price", winner, price, "Die Auktion vervollständigt die Farbgruppe: 120 %% des Gebots werden fällig.")
+	}
+	g.registerDebt(winner, PaymentCause{Code: "auktion", Creditor: "für " + g.tile(a.Tile).Name})
+	if g.debtCheckpoint() {
+		return
 	}
 	g.completeTurn()
 }

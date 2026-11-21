@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { GameState } from '#lib/types';
 	import { formatMoney, tokenColor } from '#lib/format';
+	import { bankruptcyCauseLabel, bankruptcyFor, bankruptcyTooltip } from '#lib/bankruptcy';
 
 	let { game }: { game: GameState } = $props();
 
@@ -26,6 +27,7 @@
 			<thead>
 				<tr>
 					<th>Spieler</th>
+					<th>Ausscheiden</th>
 					<th>Vermögen</th>
 					<th>Miete erhalten</th>
 					<th>Miete gezahlt</th>
@@ -36,10 +38,14 @@
 			</thead>
 			<tbody>
 				{#each standings as player (player.id)}
+					{@const bust = player.bankrupt ? bankruptcyFor(game.events, player.seat) : undefined}
 					<tr class:bankrupt={player.bankrupt}>
 						<td>
 							<span class="dot" style="background: {tokenColor(player.color)}"></span>
 							{player.name}
+						</td>
+						<td class="reason" title={bust ? bankruptcyTooltip(bust) : ''}>
+							{player.bankrupt ? bankruptcyCauseLabel(bust?.cause) : '–'}
 						</td>
 						<td>{formatMoney(player.netWorth)}</td>
 						<td>{formatMoney(player.stats.rentCollected)}</td>
@@ -103,6 +109,11 @@
 
 	th:first-child,
 	td:first-child {
+		text-align: left;
+	}
+
+	th:nth-child(2),
+	td.reason {
 		text-align: left;
 	}
 

@@ -10,6 +10,7 @@ function player(overrides: Partial<Player> = {}): Player {
 		color: 'blau',
 		seat: 0,
 		cash: 1500,
+		liquidationValue: 1500,
 		position: 0,
 		inJail: false,
 		jailAttempts: 0,
@@ -37,6 +38,21 @@ const ELIGIBLE: TurnPhase[] = ['awaiting_roll', 'awaiting_purchase', 'awaiting_j
 const INELIGIBLE: TurnPhase[] = ['awaiting_debt', 'auction', 'finished'];
 
 describe('ForfeitButton', () => {
+	// Regression guard: the debt phase has its own give-up panel and blocks the
+	// whole game, so the voluntary topbar forfeit must never appear there.
+	it('never offers a forfeit during the debt phase', () => {
+		render(ForfeitButton, {
+			phase: 'playing',
+			turnPhase: 'awaiting_debt',
+			isMyTurn: true,
+			me: player({ cash: -100 }),
+			onIntent: () => {}
+		});
+
+		expect(forfeitTrigger()).toBeNull();
+		expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+	});
+
 	it.each(ELIGIBLE)('offers the forfeit in own turn phase %s', (turnPhase) => {
 		render(ForfeitButton, {
 			phase: 'playing',

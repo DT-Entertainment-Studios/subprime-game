@@ -11,6 +11,7 @@ function player(id: string, name: string, seat: number, position: number): Playe
 		color: 'blau',
 		seat,
 		cash: 1500,
+		liquidationValue: 1500,
 		position,
 		inJail: false,
 		jailAttempts: 0,

@@ -45,6 +45,7 @@ function game(): GameState {
 				color: 'blau',
 				seat: 0,
 				cash: 1500,
+				liquidationValue: 1500,
 				position: 0,
 				inJail: false,
 				jailAttempts: 0,
@@ -64,6 +65,7 @@ function game(): GameState {
 		],
 		tiles: Array.from({ length: 40 }, () => ({ owner: -1, houses: 0, mortgaged: false })),
 		current: 0,
+		debtor: -1,
 		turnPhase: 'awaiting_roll',
 		dice: [3, 4],
 		doubles: 0,
@@ -73,9 +75,44 @@ function game(): GameState {
 	};
 }
 
+function auctionGame(liquidationValue: number, cash = 20): GameState {
+	const state = game();
+	state.players[0].cash = cash;
+	state.players[0].liquidationValue = liquidationValue;
+	state.auction = {
+		tile: 1,
+		bid: 0,
+		bidder: -1,
+		minBid: 20,
+		endsAt: new Date(Date.now() + 15_000).toISOString(),
+		history: []
+	};
+	return state;
+}
+
+/** Two seats, one of them in debt; `debtorSeat` selects who owes. */
+function debtGame(debtorSeat: number): GameState {
+	const state = game();
+	state.turnPhase = 'awaiting_debt';
+	state.debtor = debtorSeat;
+	state.players.push({
+		...state.players[0],
+		id: 'user-1',
+		name: 'Berta',
+		seat: 1,
+		cash: -100,
+		liquidationValue: 200
+	});
+	if (debtorSeat === 0) {
+		state.players[0].cash = -100;
+		state.players[0].liquidationValue = 200;
+	}
+	return state;
+}
+
 describe('Board', () => {
 	it('opens the tile detail card when a field is clicked', async () => {
-		render(Board, { game: game(), isMyTurn: false, me: null, onIntent: () => {} });
+		render(Board, { game: game(), isMyTurn: false, isDebtor: false, me: null, onIntent: () => {} });
 
 		// 'Straße 5' carries no soft hyphen from breakName().
 		fireEvent.click(screen.getByText('Straße 5'));
@@ -97,7 +134,7 @@ describe('Board', () => {
 			history: []
 		};
 		const onIntent = vi.fn();
-		render(Board, { game: state, isMyTurn: false, me: state.players[0], onIntent });
+		render(Board, { game: state, isMyTurn: false, isDebtor: false, me: state.players[0], onIntent });
 
 		const minus = screen.getByRole('button', { name: 'Gebot um 20 senken' });
 		const plus = screen.getByRole('button', { name: 'Gebot um 20 erhöhen' });
@@ -108,5 +145,111 @@ describe('Board', () => {
 		await fireEvent.click(screen.getByRole('button', { name: 'Bieten' }));
 
 		expect(onIntent).toHaveBeenCalledWith({ type: 'bid', amount: 40 });
+	});
+
+	it('allows a bid above cash when the liquidation value covers it', async () => {
+		const state = auctionGame(200);
+		const onIntent = vi.fn();
+		render(Board, { game: state, isMyTurn: false, isDebtor: false, me: state.players[0], onIntent });
+
+		const plus = screen.getByRole('button', { name: 'Gebot um 20 erhöhen' });
+		await fireEvent.click(plus);
+		await fireEvent.click(plus); // 60 GE, above the 20 GE cash balance
+		expect(plus).toBeEnabled();
+		await fireEvent.click(screen.getByRole('button', { name: 'Bieten' }));
+
+		expect(onIntent).toHaveBeenCalledWith({ type: 'bid', amount: 60 });
+		expect(screen.getByText(/Verkauf und Hypotheken zählen mit/)).toBeInTheDocument();
+	});
+
+	it('limits the +20 step by liquidation value, not by cash', async () => {
+		const state = auctionGame(40);
+		render(Board, {
+			game: state,
+			isMyTurn: false,
+			isDebtor: false,
+			me: state.players[0],
+			onIntent: () => {}
+		});
+
+		const plus = screen.getByRole('button', { name: 'Gebot um 20 erhöhen' });
+		expect(plus).toBeEnabled();
+		await fireEvent.click(plus); // bid 40, liquidation value exhausted
+		expect(plus).toBeDisabled();
+	});
+
+	it('hides bid controls when the liquidation value is below the minimum bid', () => {
+		const state = auctionGame(10, 10);
+		render(Board, {
+			game: state,
+			isMyTurn: false,
+			isDebtor: false,
+			me: state.players[0],
+			onIntent: () => {}
+		});
+
+		expect(screen.queryByRole('button', { name: 'Bieten' })).toBeNull();
+		expect(screen.getByText('Du kannst gerade nicht bieten.')).toBeInTheDocument();
+	});
+
+	it('names a foreign debtor and reports the blocked game', () => {
+		const state = debtGame(1);
+		render(Board, {
+			game: state,
+			isMyTurn: true,
+			isDebtor: false,
+			me: state.players[0],
+			debtor: state.players[1],
+			onIntent: () => {}
+		});
+
+		expect(screen.getByText(/Berta muss Schulden begleichen/)).toBeInTheDocument();
+		expect(screen.getByText(/Das Spiel ist blockiert/)).toBeInTheDocument();
+		expect(screen.queryByRole('button', { name: 'Aufgeben' })).toBeNull();
+	});
+
+	it('offers the two-step give-up only to the debtor', async () => {
+		const state = debtGame(0);
+		render(Board, {
+			game: state,
+			isMyTurn: false,
+			isDebtor: true,
+			me: state.players[0],
+			debtor: state.players[0],
+			onIntent: () => {}
+		});
+
+		expect(screen.getByText(/Du hast 100 GE Schulden/)).toBeInTheDocument();
+		await fireEvent.click(screen.getByRole('button', { name: 'Aufgeben' }));
+		expect(screen.getByText(/Wirklich aufgeben/)).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: 'Ja, aufgeben' })).toBeInTheDocument();
+	});
+
+	it('resets the give-up confirmation when the debtor changes', async () => {
+		const state = debtGame(0);
+		const { rerender } = render(Board, {
+			game: state,
+			isMyTurn: false,
+			isDebtor: true,
+			me: state.players[0],
+			debtor: state.players[0],
+			onIntent: () => {}
+		});
+
+		await fireEvent.click(screen.getByRole('button', { name: 'Aufgeben' }));
+		expect(screen.getByRole('button', { name: 'Ja, aufgeben' })).toBeInTheDocument();
+
+		await rerender({
+			game: state,
+			isMyTurn: true,
+			isDebtor: false,
+			me: state.players[0],
+			debtor: state.players[1],
+			onIntent: () => {}
+		});
+
+		expect(screen.queryByRole('button', { name: 'Ja, aufgeben' })).toBeNull();
+		expect(screen.queryByText(/Wirklich aufgeben/)).toBeNull();
+		expect(screen.getByText(/Berta muss Schulden begleichen/)).toBeInTheDocument();
 	});
 });

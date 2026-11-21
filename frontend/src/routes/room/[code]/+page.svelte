@@ -41,6 +41,9 @@
 	const game = $derived(room?.game ?? null);
 	const me = $derived(session.me);
 	const isMyTurn = $derived(session.isMyTurn);
+	// The seat settling a debt can differ from the active player.
+	const isDebtor = $derived(session.isDebtor);
+	const debtor = $derived(game && game.debtor >= 0 ? (game.players[game.debtor] ?? null) : null);
 
 	// The estate card keeps its own state; only the user toggles it.
 	let estateOpen = $state(preferences.current.estatePanelOpen);
@@ -172,7 +175,7 @@
 	{:else if game}
 		<div class="game" style="zoom: {preferences.current.zoom};">
 			<main class="board-area">
-				<Board {game} {isMyTurn} {me} onIntent={send} />
+				<Board {game} {isMyTurn} {isDebtor} {debtor} {me} onIntent={send} />
 			</main>
 			<aside class="side">
 				<section class="card">
@@ -191,7 +194,7 @@
 				{#if me && game.phase === 'playing'}
 					<details class="card" bind:open={estateOpen}>
 						<summary>Bauen und Verwalten</summary>
-						<EstatePanel {game} {me} {isMyTurn} onIntent={send} />
+						<EstatePanel {game} {me} {isMyTurn} {isDebtor} onIntent={send} />
 					</details>
 
 					{#if !me.bankrupt}

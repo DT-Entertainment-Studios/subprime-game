@@ -9,11 +9,15 @@
 	let {
 		game,
 		isMyTurn,
+		isDebtor,
+		debtor = null,
 		me = null,
 		onIntent
 	}: {
 		game: GameState;
 		isMyTurn: boolean;
+		isDebtor: boolean;
+		debtor?: Player | null;
 		me?: Player | null;
 		onIntent: (intent: Intent) => void;
 	} = $props();
@@ -51,16 +55,17 @@
 		game.auction !== undefined &&
 			me !== null &&
 			!me.bankrupt &&
+			game.turnPhase !== 'awaiting_debt' &&
 			game.auction.bidder !== me.seat &&
-			me.cash >= bidStep
+			(me.liquidationValue ?? me.cash) >= bidStep
 	);
-	const debtAmount = $derived(me && me.cash < 0 ? -me.cash : 0);
+	const debtAmount = $derived(debtor && debtor.cash < 0 ? -debtor.cash : 0);
 	const pendingShortfall = $derived(
 		game.pending && me ? Math.max(0, game.pending.price - me.cash) : 0
 	);
 
 	$effect(() => {
-		if (game.turnPhase !== 'awaiting_debt' || !isMyTurn) confirmGiveUp = false;
+		if (game.turnPhase !== 'awaiting_debt' || !isDebtor) confirmGiveUp = false;
 	});
 
 	// Keep the selected bid valid: reset between auctions and follow the
@@ -206,7 +211,7 @@
 									class="step"
 									type="button"
 									aria-label="Gebot um 20 erhöhen"
-									disabled={me !== null && bidValue + 20 > me.cash}
+									disabled={me !== null && bidValue + 20 > (me.liquidationValue ?? me.cash)}
 									onclick={() => (bidAmount = bidValue + 20)}
 								>
 									+20
@@ -214,6 +219,9 @@
 							</div>
 							<button class="cta bid-submit" type="button" onclick={placeBid}>Bieten</button>
 						</div>
+						<p class="muted">
+							Gebote dürfen über dein Bargeld hinausgehen: Verkauf und Hypotheken zählen mit.
+						</p>
 					{:else}
 						<p class="muted">Du kannst gerade nicht bieten.</p>
 					{/if}
@@ -253,7 +261,7 @@
 
 			{#if game.turnPhase === 'awaiting_debt'}
 				<div class="decision debt">
-					{#if isMyTurn && me}
+					{#if isDebtor && debtor}
 						<p>
 							<strong>Du hast {formatMoney(debtAmount)} Schulden.</strong>
 						</p>
@@ -273,7 +281,8 @@
 							<button class="plain danger" onclick={() => (confirmGiveUp = true)}>Aufgeben</button>
 						{/if}
 					{:else}
-						<p class="muted">{current?.name} muss Schulden begleichen …</p>
+						<p class="muted">{debtor?.name ?? current?.name ?? 'Ein Spieler'} muss Schulden begleichen …</p>
+						<p class="muted">Das Spiel ist blockiert, bis die Schulden beglichen sind.</p>
 					{/if}
 				</div>
 			{/if}

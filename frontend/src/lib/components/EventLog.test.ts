@@ -53,4 +53,34 @@ describe('EventLog', () => {
 
 		expect(log.scrollTop).toBe(180);
 	});
+
+	it('highlights bankruptcy entries', () => {
+		const bust = { ...event(2, 'Anton ist pleite.'), type: 'bankruptcy' };
+		const { container } = render(EventLog, { props: { events: [event(1), bust] } });
+
+		const bustEntry = [...container.querySelectorAll('.entry')].find((node) =>
+			node.textContent?.includes('Anton ist pleite.')
+		);
+		expect(bustEntry).toHaveClass('bankrupt');
+		// Only bankruptcy entries carry the marker, not normal rows.
+		const normalEntry = [...container.querySelectorAll('.entry')].find((node) =>
+			node.textContent?.includes('Ereignis 1')
+		);
+		expect(normalEntry).not.toHaveClass('bankrupt');
+	});
+
+	it('keeps scroll position with a bankruptcy entry', async () => {
+		const events = [event(1), event(2)];
+		const { container, rerender } = render(EventLog, { props: { events } });
+		const log = logOf(container);
+		scrollHeight(log, () => (log.querySelectorAll('.entry').length > 2 ? 460 : 400));
+
+		log.scrollTop = 120;
+		await fireEvent.scroll(log);
+
+		const bust = { ...event(4, 'Anton ist pleite.'), type: 'bankruptcy' };
+		await rerender({ events: [...events, event(3), bust] });
+
+		expect(log.scrollTop).toBe(180);
+	});
 });

@@ -245,6 +245,9 @@ positive `amount`. The loader refuses to start on an invalid catalog.
   refunds. No money limit.
 - **Event log**: append-only list of game events (roll, move, payment, purchase, trade,
   card, jail, debt, give-up, bankruptcy) with the acting player and affected amounts.
+  An automatic bankruptcy event additionally carries a stable `cause` code and the
+  `debt`, `realizable` and `shortfall` amounts (all optional, so older events stay
+  valid); bankruptcy lines are tinted with the error-container design tokens.
 
 ## 4. Features
 
@@ -356,7 +359,11 @@ the client shows. There are no silent fallbacks.
 
 - Landing on an unowned tile offers the purchase at the catalog price. The player may
   decline; a declined tile goes to auction. A player who cannot cover the price yet still
-  gets the offer and can bid unlimited. They get into debt as if they had to pay something when they have not enough money to fullfil their bid.
+  gets the offer and may raise money by mortgaging or selling assets before deciding.
+  Auction bids are capped by the bidder's liquidation value (their cash plus the full
+  realizable value of their assets), not by cash alone. A winner whose bid exceeds their cash
+  still gets the tile: their cash goes negative and the global debt phase starts immediately,
+  before the interrupted turn continues.
 - The tile only goes to auction when the player
   actively starts the auction. It is never auctioned automatically.
 - **Double-payment rule**: buying the tile that completes a color group costs **twice**
@@ -366,6 +373,13 @@ the client shows. There are no silent fallbacks.
   divisible by 20 and must exceed the current bid; the minimum first bid is 20 GE, and
   bids below the catalog price are allowed. The auction ends when no higher bid arrives
   within the countdown.
+- **Bid limit and insufficient cash**: a bid may not exceed the bidder's liquidation value —
+  cash plus all building refunds plus the 70 % sale value of every unmortgaged property
+  (mortgaged properties count as 0). The 20 GE step and the 20 GE minimum bid are unchanged.
+  A winner who cannot pay from cash alone still receives the tile and immediately enters the
+  debt phase; the auction is not re-run and the bid does not lapse. If the 120 % rule lifts the
+  price above the bidder's liquidation value, the same debt phase (or automatic bankruptcy)
+  applies.
 - **Auction completion rule**: if the winning tile completes a color group, the winner
   pays **120 % of its bid** instead of the bid.
 - A tile nobody bids on stays with the bank and can be bought at the catalog price
@@ -492,22 +506,33 @@ the client shows. There are no silent fallbacks.
 - **Debt instead of automatic bankruptcy**: a payment that exceeds the player's cash is
   still booked in full. The payer's cash becomes negative and the creditor receives the
   full amount. The negative balance is a debt to the bank.
-- While the active player's cash is negative the turn phase is `awaiting_debt`: the player
-  cannot roll, buy, build, bid, unmortgage or conclude trades. They may mortgage
-  properties, sell houses/hotels and sell properties to the bank until the balance is no
-  longer negative. Every new income is offset against the debt. The turn ends
-  automatically once cash is non-negative; a pending double does not grant another roll.
-  Other players wait until the debt is settled. A player pushed into negative cash outside
-  their own turn enters the debt phase when their turn starts.
-- **Giving up**: a player may give up during their own turn — from the topbar in
-  `awaiting_roll`, `awaiting_purchase` and `awaiting_jail`, or from the debt panel while
-  their cash is negative. Both paths require a second confirmation. Giving up during
-  `awaiting_purchase` discards the open offer; the tile stays with the bank and is not
-  auctioned. The player leaves the game immediately: their buildings are sold back to the
-  bank, remaining properties go to the bank, and the bank absorbs any remaining shortfall
-  (the creditor was already paid). Get-out-of-jail cards return under their deck. Open
-  trades are cancelled and the player is removed from any running auction. Giving up is
-  not possible during an auction or outside the player's own turn.
+- **Immediate, global debt phase**: as soon as any player's cash is negative the turn phase
+  is `awaiting_debt` and the game is blocked for everyone, even when the debtor is not the
+  active player (a birthday card or a utility share can cause this). The `debtor` field of
+  the state names the seat currently settling the debt; several debtors may be open at
+  once. During the debt phase nobody can roll, buy, build,
+  bid, unmortgage or conclude trades. The debtor may mortgage properties, sell houses/hotels
+  and sell to the bank even out of turn, until the balance is no longer negative. Every new
+  income is offset against the debt. Once all debts are cleared the interrupted turn resumes
+  exactly where it stopped; a pending double still does not grant another roll.
+- **Automatic bankruptcy**: if a debt cannot be covered even by full liquidation (cash plus
+  all building refunds plus all unmortgaged sale values), the player is eliminated
+  immediately, without a manual giving-up step. The creditor was already paid in full and
+  the bank absorbs the shortfall. The triggering event names the player, the cause and all
+  three amounts (debt, realizable, shortfall) in one message. Every viewer gets one
+  dismissible notice in the bottom-left dock (no modal, no focus theft, no auto-dismiss,
+  none on page reload); the player list keeps a "pleite" badge whose tooltip repeats the
+  details, and the end screen shows the elimination reason in an "Ausscheiden" column.
+- **Giving up**: a player may give up during their own turn from the topbar in
+  `awaiting_roll`, `awaiting_purchase` and `awaiting_jail`. The current debtor may also give
+  up from the debt panel, even when it is not their turn. Both paths require a second
+  confirmation. Giving up during `awaiting_purchase` discards the open offer; the tile stays
+  with the bank and is not auctioned. The player leaves the game immediately: their buildings
+  are sold back to the bank, remaining properties go to the bank, and the bank absorbs any
+  remaining shortfall (the creditor was already paid). Get-out-of-jail cards return under
+  their deck. Open trades are cancelled and the player is removed from any running auction.
+  Voluntary forfeit is not possible during an auction or during `awaiting_debt`; the debt
+  panel is the exit there.
 - A player who gave up or was voted out leaves the game; their seat stays visible as
   eliminated and their turns are skipped.
 - **End of game**: the game ends when only one player is left. The final screen shows the
@@ -584,9 +609,9 @@ The following are fixed for v1.0 and shown in the lobby:
 | Selling to the bank | 70 % of the purchase price; a mortgaged property returns for 0 |
 | Buildings | levels within a group differ by at most 1; bank stock unlimited |
 | Trading | allowed before rolling, unbuilt properties only, not judged |
-| Debt | payments may push cash negative; the player must mortgage or sell before continuing |
-| Autopilot | optional per seat and game; rolls, buys and builds automatically, pauses during auctions, stops on incoming trade offers and on decisions it cannot make |
-| Giving up | own turn (not during an auction; the debt phase uses the debt panel), with a second confirmation; buildings/properties go to the bank, the bank absorbs the shortfall |
+| Debt | payments may push cash negative; the debt phase blocks all players immediately, even for a debtor who is not active, until it is liquidated or the debtor goes bankrupt |
+| Autopilot | optional per seat and game; rolls, buys and builds automatically, pauses during auctions and while any debt is open, stops on incoming trade offers and on decisions it cannot make |
+| Giving up | own turn or as the current debtor from the debt panel even out of turn (never during an auction), with a second confirmation; unpayable debt eliminates automatically; buildings/properties go to the bank, the bank absorbs the shortfall |
 | Hotel | counts as five houses; costs the build cost once, four houses return to the bank; selling it back refunds half a build cost and leaves 4 houses |
 | Card chaining | unlimited |
 | Krumme Deals | forbidden by rule, not enforced in v1.0 |
@@ -923,13 +948,17 @@ Why each open point was resolved the way it was.
   `target`, `amount`, and `losSalary`; the loader validates 16 cards per deck and refuses
   to start on an invalid catalog.
 - **Debt and giving up** (4.10): a payment a player cannot cover pushes their cash
-  negative instead of ending the game. The creditor is paid in full; the player must
-  mortgage or sell assets until the balance is non-negative, otherwise they give up with
-  an explicit confirmation. On giving up, buildings are sold back at half the build price,
-  properties and get-out-of-jail cards return to the bank/deck, and the bank absorbs the
-  remaining shortfall. A player may also give up voluntarily in their own turn through the
-  topbar button; it uses the same elimination path. Trades still may only use cash a player
-  actually has.
+  negative instead of ending the game. The creditor is paid in full and the global
+  `awaiting_debt` phase starts at once, even when the debtor is not the active player; all
+  other actions are blocked until the debt is settled. The debtor may mortgage or sell
+  assets even out of turn. If full liquidation cannot cover the debt, the player is
+  eliminated automatically, without giving up manually (the bank absorbs the shortfall).
+  Otherwise the debtor may give up from the debt panel with an explicit confirmation, even
+  out of turn. A player may also give up voluntarily in their own turn through the topbar
+  button; it uses the same elimination path. On giving up, buildings are sold back at half
+  the build price, properties and get-out-of-jail cards return to the bank/deck, and the
+  bank absorbs the remaining shortfall. Trades still may only use cash a player actually
+  has.
 - **Card chaining**: unlimited. In the German deck no card moves the player onto a card
   field, so chaining only starts via the "move back three tiles" card and always
   terminates.
@@ -956,11 +985,12 @@ Why each open point was resolved the way it was.
   free of buildings; a mortgaged property sold to the bank pays nothing (the mortgage is
   settled by the return).
 - **Several creditors**: only reachable through the "Vorstand" card — every payee is credited
-  in full immediately, even if this pushes the payer's cash negative. The payer then settles
-  the resulting debt to the bank.
-- **Unaffordable purchase**: a player who cannot cover the price still receives the offer and
-  may raise money by mortgaging or selling property; the tile only goes to auction when the
-  player actively starts the auction.
+  in full immediately, even if this pushes one or more payers' cash negative. Each resulting
+  debt is handled immediately in the global debt phase, even when the debtor is not the
+  active player. The payers then settle their debts to the bank.
+- **Unaffordable purchase**: a player who cannot cover the price still receives the offer.
+  Auction bids may reach full liquidation value, and an auction winner who cannot pay from
+  cash enters the global debt phase.
 - **Dedicated presence channel**: presence and invitations travel over their own
   WebSocket (`/api/ws/presence`) instead of the room socket. The room contract stays
   `state`/`error`, and a global start-page list is not tied to a per-room connection.
@@ -1023,7 +1053,9 @@ Why each open point was resolved the way it was.
   same `connected=false` state as a closed tab. A rejoin with the code continues the same
   seat, so a player can step away without losing the game. Forfeiting happens through the
   two "Aufgeben" entry points — the topbar in the player's own turn and the debt panel
-  while in debt — or through the legacy `leave_room` intent.
+  while in debt (the latter also when the debtor is not the active player) — or through the
+  legacy `leave_room` intent. A debt beyond full liquidation needs no giving-up; it
+  eliminates the player automatically.
 - **Unanimous votekick**: the other non-eliminated, currently connected players can kick
   a paused seat, and only when all of them voted (at least one). It is available
   immediately — no grace period, no host override — and a vote count below quorum is
