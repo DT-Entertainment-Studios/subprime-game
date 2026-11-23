@@ -18,10 +18,25 @@ func (g *Game) startAuction(tile int) {
 	g.logf("auction_start", g.Current, 0, "%s wird versteigert (Mindestgebot %d GE).", g.tile(tile).Name, auctionBidStep)
 }
 
+// auctionWinPrice returns what a winning bid costs the bidder. Winning a tile
+// that completes the bidder's color group costs 120% of the bid (integer
+// rounding); doubled reports whether that rule applied. Both the affordability
+// check in Bid and the charge in resolveAuction use this single computation.
+func (g *Game) auctionWinPrice(bidder, tile, bid int) (price int, doubled bool) {
+	price = bid
+	if g.wouldCompleteGroup(bidder, tile) {
+		price = bid * 120 / 100
+		doubled = true
+	}
+	return price, doubled
+}
+
 // Bid places an auction bid. Bids must be positive multiples of 20 and exceed
 // the current bid; the first bid is not required to reach the catalog price.
-// The limit is the bidder's full liquidation value, not just their cash: a winning bid
-// above cash sends them into the debt phase (Spec.md §4.4).
+// The limit is the bidder's full liquidation value, not just their cash, measured
+// against the effective price: 120% of the bid when winning would complete the
+// tile's color group, otherwise the raw bid. A winning bid above cash sends the
+// bidder into the debt phase (Spec.md §4.4).
 func (g *Game) Bid(player, amount int) error {
 	if g.Phase != PhasePlaying {
 		return g.fail("game_over", "Das Spiel ist beendet.")
@@ -49,7 +64,7 @@ func (g *Game) Bid(player, amount int) error {
 	} else if amount <= a.Bid {
 		return g.fail("invalid_bid", "Das Gebot muss über %d GE liegen.", a.Bid)
 	}
-	if g.liquidationValue(player) < amount {
+	if price, _ := g.auctionWinPrice(player, a.Tile, amount); g.liquidationValue(player) < price {
 		return g.fail("insufficient_cash", "Du kannst dieses Gebot nicht bezahlen.")
 	}
 	now := g.clock()
@@ -79,11 +94,7 @@ func (g *Game) resolveAuction() {
 		return
 	}
 	winner := a.Bidder
-	price := a.Bid
-	doubled := g.wouldCompleteGroup(winner, a.Tile)
-	if doubled {
-		price = a.Bid * 120 / 100
-	}
+	price, doubled := g.auctionWinPrice(winner, a.Tile, a.Bid)
 	pl := g.Players[winner]
 	pl.Cash -= price
 	g.holdAuctionWin(winner, a.Tile)
