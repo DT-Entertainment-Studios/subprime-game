@@ -11,13 +11,25 @@
 		game,
 		me = null,
 		kickVotes = [],
-		onVotekick
+		onVotekick,
+		selectedSeat = null,
+		onSelect
 	}: {
 		game: GameState;
 		me?: Player | null;
 		kickVotes?: KickVote[];
 		onVotekick?: (userId: string) => void;
+		selectedSeat?: number | null;
+		onSelect?: (seat: number) => void;
 	} = $props();
+
+	// The name button is the keyboard control; the row click is the larger
+	// pointer target around it. Stopping propagation in the button keeps a click
+	// on the name from toggling twice.
+	function handleRowClick(event: MouseEvent, seat: number) {
+		if (event.target instanceof Element && event.target.closest('.vote-slot')) return;
+		onSelect?.(seat);
+	}
 </script>
 
 <ul class="players">
@@ -27,6 +39,7 @@
 		{@const needed = game.players.filter(
 			(p) => p.id !== player.id && p.connected && !p.bankrupt
 		).length}
+		{@const ownedCount = game.tiles.filter((tile) => tile.owner === player.seat).length}
 		{@const canVote =
 			game.phase === 'playing' &&
 			me !== null &&
@@ -34,16 +47,33 @@
 			!player.bankrupt &&
 			!player.connected &&
 			player.id !== me.id}
+		<!-- The <li> click is a pointer convenience; Enter/Space stay on the real button. -->
+		<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_noninteractive_element_interactions -->
 		<li
 			class="player"
 			class:current={game.current === player.seat && game.phase === 'playing'}
 			class:bankrupt={player.bankrupt}
+			class:selected={selectedSeat === player.seat}
+			onclick={(event) => handleRowClick(event, player.seat)}
 		>
 			<span class="car" class:active={game.current === player.seat && game.phase === 'playing'}>
 				<CarIcon color={tokenColor(player.color)} />
 			</span>
-			<span class="name">
-				{player.name}
+			<span class="name-cell">
+				<button
+					type="button"
+					class="name"
+					aria-pressed={selectedSeat === player.seat}
+					aria-describedby={`player-tip-${player.id}`}
+					onclick={(event) => {
+						event.stopPropagation();
+						onSelect?.(player.seat);
+					}}
+				>{player.name}</button>
+				<span class="tip" role="tooltip" id={`player-tip-${player.id}`}>
+					<span>NAV: {formatMoney(player.netWorth)}</span>
+					<span>{ownedCount} {ownedCount === 1 ? 'Feld' : 'Felder'}</span>
+				</span>
 				{#if me?.id === player.id}<span class="badge">Du</span>{/if}
 				{#if player.autopilot?.active}<span class="badge" title="Autopilot aktiv">Autopilot</span>{/if}
 			</span>
@@ -101,6 +131,7 @@
 		border-radius: var(--md-sys-shape-corner-small);
 		background: var(--md-sys-color-surface);
 		border: 1px solid transparent;
+		cursor: pointer;
 	}
 
 	.player.current {
@@ -114,6 +145,13 @@
 	   well, so the accent stays light-only (clarify D3). */
 	:global(:root[data-theme='light']) .player.current {
 		box-shadow: inset 3px 0 0 0 var(--md-sys-color-tertiary);
+	}
+
+	/* Inside outline so the row keeps its size; the current-turn tint and inset
+	   bar stay visible underneath it. */
+	.player.selected {
+		outline: 2px solid var(--md-sys-color-primary);
+		outline-offset: -2px;
 	}
 
 	.player.bankrupt {
@@ -131,10 +169,62 @@
 		filter: drop-shadow(0 0 0.2rem color-mix(in srgb, var(--md-sys-color-on-surface) 55%, transparent));
 	}
 
+	.name-cell {
+		position: relative;
+		display: flex;
+		align-items: center;
+		gap: 0.25rem;
+		min-width: 0;
+		overflow: visible;
+	}
+
+	/* The name is a plain-looking toggle, not a separate CTA. */
 	.name {
+		display: block;
+		min-width: 0;
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
+		background: none;
+		border: 0;
+		padding: 0;
+		color: inherit;
+		font: inherit;
+		text-align: left;
+		cursor: pointer;
+	}
+
+	.name-cell .badge {
+		flex: 0 0 auto;
+	}
+
+	.tip {
+		display: none;
+		position: absolute;
+		top: calc(100% + 0.25rem);
+		left: 0;
+		z-index: 5;
+		min-width: max-content;
+		padding: 0.5rem 0.75rem;
+		border-radius: var(--md-sys-shape-corner-small);
+		background: var(--md-sys-color-inverse-surface);
+		color: var(--md-sys-color-inverse-on-surface);
+		font: var(--md-sys-typescale-label-small);
+		white-space: nowrap;
+		line-height: 1.4;
+	}
+
+	.tip span {
+		display: block;
+	}
+
+	/* jsdom cannot evaluate media queries; the source-level gate is tested in
+	   PlayersList.test.ts and the behaviour needs a real fine-pointer check. */
+	@media (hover: hover) and (pointer: fine) {
+		.player:hover .tip,
+		.name:focus-visible + .tip {
+			display: block;
+		}
 	}
 
 	.figures {

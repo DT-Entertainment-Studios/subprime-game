@@ -26,6 +26,7 @@
 		owner = undefined,
 		occupants = [],
 		losSalary = 200,
+		selectedSeat = null,
 		onselect
 	}: {
 		tile: BoardTile;
@@ -33,6 +34,8 @@
 		owner?: Player;
 		occupants?: Player[];
 		losSalary?: number;
+		/** Seat focused in the player list; null means no board focus. */
+		selectedSeat?: number | null;
 		/** Opens the tile detail card; every rendered tile is clickable. */
 		onselect: () => void;
 	} = $props();
@@ -44,6 +47,9 @@
 			onselect();
 		}
 	}
+
+	const faded = $derived(selectedSeat !== null && state.owner !== selectedSeat);
+	const highlighted = $derived(selectedSeat !== null && state.owner === selectedSeat);
 
 	const pos = $derived(gridPosition(tile.index));
 	const isCorner = $derived(tile.index % 10 === 0);
@@ -217,6 +223,8 @@
 	class:special={special !== null}
 	class:parking={tile.type === 'parking'}
 	class:mortgaged={state.mortgaged}
+	class:faded={faded}
+	class:highlighted={highlighted}
 	data-index={tile.index}
 	role="button"
 	tabindex="0"
@@ -306,6 +314,11 @@
 		opacity: 0.72;
 	}
 
+	/* Declared after .mortgaged so board focus wins while it is active. */
+	.tile.faded {
+		opacity: 0.45;
+	}
+
 	/* Every field opens the detail card on click; keyboard users focus it. */
 	.tile.selectable {
 		cursor: pointer;
@@ -322,6 +335,18 @@
 		outline: var(--cd-focus-ring-width) solid var(--cd-focus-ring-color);
 		outline-offset: var(--cd-focus-ring-offset);
 		z-index: 3;
+	}
+
+	/* Overlay ring above the owner strip (z-index 3) so all four edges stay
+	   continuous. pointer-events: none keeps the field fully clickable. */
+	.tile.selectable.highlighted::after {
+		content: '';
+		position: absolute;
+		inset: 0;
+		border: 2px solid var(--md-sys-color-primary);
+		border-radius: inherit;
+		pointer-events: none;
+		z-index: 4;
 	}
 
 	.band {

@@ -12,6 +12,7 @@
 		isDebtor,
 		debtor = null,
 		me = null,
+		selectedSeat = null,
 		onIntent
 	}: {
 		game: GameState;
@@ -19,6 +20,7 @@
 		isDebtor: boolean;
 		debtor?: Player | null;
 		me?: Player | null;
+		selectedSeat?: number | null;
 		onIntent: (intent: Intent) => void;
 	} = $props();
 
@@ -97,6 +99,7 @@
 			owner={game.tiles[tile.index].owner >= 0 ? game.players[game.tiles[tile.index].owner] : undefined}
 			occupants={occupants.get(tile.index) ?? []}
 			losSalary={game.rules.losSalary}
+			{selectedSeat}
 			onselect={() => (selectedTile = tile.index)}
 		/>
 	{/each}
@@ -128,7 +131,12 @@
 			<path class="asphalt" d={ROAD_PATHS.parking} />
 			<path class="bay" d={ROAD_PATHS.parkingBays} style="stroke-width: {EDGE_WIDTH}" />
 		</svg>
-		<RoadCars players={game.players} currentSeat={game.current} events={game.events} />
+		<RoadCars
+			players={game.players}
+			currentSeat={game.current}
+			events={game.events}
+			{selectedSeat}
+		/>
 		<div class="panel">
 			<div class="turn">
 				<strong>{current?.name ?? '–'}</strong>
