@@ -110,3 +110,48 @@ describe('RoadCars turn marker', () => {
 		expect(RoadCarsSource).not.toContain('0.35rem');
 	});
 });
+
+describe('RoadCars seat focus', () => {
+	const players = [player('anna', 'Anna', 0, 3), player('ben', 'Ben', 1, 7)];
+	const props = (selectedSeat: number | null) => ({
+		players,
+		currentSeat: 0,
+		events: [],
+		selectedSeat
+	});
+
+	it('fades every car except the selected player’s', () => {
+		const { container } = render(RoadCars, { props: props(1) });
+
+		expect(carOf(container, 'Ben')).not.toHaveClass('faded');
+		expect(carOf(container, 'Anna')).toHaveClass('faded');
+	});
+
+	it('clears the fade without a selection and moves it with the seat', async () => {
+		const { container, rerender } = render(RoadCars, { props: props(1) });
+
+		await rerender({ selectedSeat: null });
+
+		expect(container.querySelectorAll('.car.faded')).toHaveLength(0);
+
+		await rerender({ selectedSeat: 0 });
+
+		expect(carOf(container, 'Anna')).not.toHaveClass('faded');
+		expect(carOf(container, 'Ben')).toHaveClass('faded');
+	});
+
+	it('never fades the layer itself and renders no car for a bankrupt player', () => {
+		const { container } = render(RoadCars, {
+			props: {
+				players: [...players, { ...player('carla', 'Carla', 2, 11), bankrupt: true }],
+				currentSeat: 0,
+				events: [],
+				selectedSeat: 0
+			}
+		});
+
+		expect(container.querySelector('.cars-layer')).not.toHaveClass('faded');
+		expect(carOf(container, 'Carla')).toBeNull();
+		expect(carOf(container, 'Ben')).toHaveClass('faded');
+	});
+});

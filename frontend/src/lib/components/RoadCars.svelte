@@ -21,8 +21,14 @@
 	let {
 		players,
 		currentSeat,
-		events
-	}: { players: Player[]; currentSeat: number; events: GameEvent[] } = $props();
+		events,
+		selectedSeat = null
+	}: {
+		players: Player[];
+		currentSeat: number;
+		events: GameEvent[];
+		selectedSeat?: number | null;
+	} = $props();
 
 	// Geometry of the centre ring road, as fractions of the middle area. These
 	// values mirror road.ts: the road is ROAD wide and the corner spurs reach
@@ -347,6 +353,7 @@
 		parked: boolean;
 		bay: boolean;
 		name: string;
+		faded: boolean;
 	}
 
 	const cars = $derived.by(() => {
@@ -407,7 +414,8 @@
 					active: player.seat === currentSeat,
 					parked: true,
 					bay: true,
-					name: player.name
+					name: player.name,
+					faded: selectedSeat !== null && player.seat !== selectedSeat
 				});
 				continue;
 			}
@@ -451,7 +459,8 @@
 					active: player.seat === currentSeat,
 					parked: group.parked,
 					bay: bayExit[player.seat] ?? false,
-					name: player.name
+					name: player.name,
+					faded: selectedSeat !== null && player.seat !== selectedSeat
 				});
 			});
 		}
@@ -466,6 +475,7 @@
 			class:active={car.active}
 			class:parked={car.parked}
 			class:bay={car.bay}
+			class:faded={car.faded}
 			title={car.name}
 			style="left: {car.x * 100}%; top: {car.y * 100}%; transform: translate(-50%, -50%) rotate({car.angle}deg) scale({car.scale});"
 		>
@@ -494,6 +504,11 @@
 			drop-shadow(0 0 0.12rem color-mix(in srgb, var(--cd-ral9016) 45%, transparent))
 			drop-shadow(0 2px 2px color-mix(in srgb, var(--md-sys-color-shadow) 50%, transparent));
 		will-change: left, top, transform;
+	}
+
+	/* Only the focused player's car stays at full strength. */
+	.car.faded {
+		opacity: 0.45;
 	}
 
 	/* Turning into a corner field is slower and softer than driving on. */

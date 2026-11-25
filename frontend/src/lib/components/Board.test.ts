@@ -75,6 +75,23 @@ function game(): GameState {
 	};
 }
 
+/** Two seats with fields 1–2 owned by seat 0, field 3 by seat 1. */
+function focusGame(): GameState {
+	const state = game();
+	state.players.push({
+		...state.players[0],
+		id: 'user-1',
+		name: 'Berta',
+		seat: 1,
+		netWorth: 2200
+	});
+	state.tiles = state.tiles.map((tile, index) => ({
+		...tile,
+		owner: index === 1 || index === 2 ? 0 : index === 3 ? 1 : -1
+	}));
+	return state;
+}
+
 function auctionGame(liquidationValue: number, cash = 20): GameState {
 	const state = game();
 	state.players[0].cash = cash;
@@ -422,5 +439,67 @@ describe('Board', () => {
 		expect(screen.queryByRole('button', { name: 'Ja, aufgeben' })).toBeNull();
 		expect(screen.queryByText(/Wirklich aufgeben/)).toBeNull();
 		expect(screen.getByText(/Berta muss Schulden begleichen/)).toBeInTheDocument();
+	});
+});
+
+describe('Board seat focus', () => {
+	const state = focusGame();
+	const props = (selectedSeat: number | null) => ({
+		game: state,
+		isMyTurn: false,
+		isDebtor: false,
+		me: null,
+		selectedSeat,
+		onIntent: () => {}
+	});
+
+	function tileAt(container: HTMLElement, index: number): HTMLElement {
+		return container.querySelector<HTMLElement>(`.tile[data-index="${index}"]`) as HTMLElement;
+	}
+
+	it('highlights only the selected seat’s fields and fades every other field', () => {
+		const { container } = render(Board, props(0));
+
+		expect(tileAt(container, 1)).toHaveClass('highlighted');
+		expect(tileAt(container, 2)).toHaveClass('highlighted');
+		expect(tileAt(container, 1)).not.toHaveClass('faded');
+		expect(tileAt(container, 3)).toHaveClass('faded');
+		expect(tileAt(container, 4)).toHaveClass('faded'); // unowned
+		expect(tileAt(container, 3)).not.toHaveClass('highlighted');
+
+		for (const tile of container.querySelectorAll('.tile')) {
+			expect(tile.classList.contains('faded') && tile.classList.contains('highlighted')).toBe(false);
+		}
+		for (const untouched of ['.road', '.center', '.panel']) {
+			expect(container.querySelector(untouched)).not.toHaveClass('faded');
+		}
+	});
+
+	it('renders no flags without a selection', () => {
+		const { container } = render(Board, props(null));
+
+		expect(container.querySelectorAll('.tile.faded')).toHaveLength(0);
+		expect(container.querySelectorAll('.tile.highlighted')).toHaveLength(0);
+	});
+
+	it('moves the flags when the selected seat changes', async () => {
+		const { container, rerender } = render(Board, props(0));
+
+		await rerender(props(1));
+
+		expect(tileAt(container, 3)).toHaveClass('highlighted');
+		expect(tileAt(container, 1)).toHaveClass('faded');
+		expect(tileAt(container, 2)).toHaveClass('faded');
+		expect(tileAt(container, 3)).not.toHaveClass('faded');
+	});
+
+	it('keeps a faded field clickable', async () => {
+		const { container } = render(Board, props(0));
+		expect(tileAt(container, 3)).toHaveClass('faded');
+
+		await fireEvent.click(screen.getByText('Straße 3'));
+
+		const dialog = await screen.findByRole('dialog', { name: 'Feld Straße 3' });
+		expect(dialog).toBeInTheDocument();
 	});
 });

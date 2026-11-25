@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/svelte';
 import PlayersList from './PlayersList.svelte';
+import PlayersListSource from './PlayersList.svelte?raw';
 import type { GameState, Player } from '#lib/types';
+import { formatMoney } from '#lib/format';
 
 function player(id: string, name: string, seat: number, overrides: Partial<Player> = {}): Player {
 	return {
@@ -306,5 +308,147 @@ describe('PlayersList jail-card chip', () => {
 		render(PlayersList, { game: state, me: me(), kickVotes: [], onVotekick: () => {} });
 
 		expect(screen.getByTitle('Pannenhilfen')).toHaveTextContent('2');
+	});
+});
+
+describe('PlayersList seat focus', () => {
+	function nameButton(name: string): HTMLElement {
+		return screen.getByRole('button', { name }) as HTMLElement;
+	}
+
+	function focusProps(selectedSeat: number | null, onSelect: (seat: number) => void = () => {}) {
+		return {
+			game: game(),
+			me: me(),
+			kickVotes: [],
+			selectedSeat,
+			onSelect
+		};
+	}
+
+	function selectedNames(): string[] {
+		return [...document.querySelectorAll('.player.selected')].map(
+			(row) => row.querySelector('.name')?.textContent?.trim() ?? ''
+		);
+	}
+
+	// getByText and toHaveTextContent both collapse the narrow no-break space in
+	// formatMoney(); compare the raw text so formatMoney() can build the string.
+	function moneyTip(row: HTMLElement, expected: string): HTMLElement {
+		const label = within(row).getByText(/NAV:/) as HTMLElement;
+		expect(label.textContent?.trim()).toBe(expected);
+		return label.closest('[role="tooltip"]') as HTMLElement;
+	}
+
+	it('toggles from the name or anywhere on the row, but not from the votekick slot', async () => {
+		const onSelect = vi.fn();
+		const onVotekick = vi.fn();
+		render(PlayersList, { ...focusProps(null, onSelect), onVotekick });
+
+		await fireEvent.click(nameButton('Anna'));
+		// The name stops propagation, so it toggles exactly once.
+		expect(onSelect).toHaveBeenCalledTimes(1);
+		expect(onSelect).toHaveBeenCalledWith(0);
+
+		const row = screen.getByText('Anna').closest('li') as HTMLElement;
+		expect(row.tagName).toBe('LI');
+		expect(row).not.toHaveAttribute('role');
+
+		onSelect.mockClear();
+		await fireEvent.click(row);
+		expect(onSelect).toHaveBeenCalledTimes(1);
+		expect(onSelect).toHaveBeenCalledWith(0);
+
+		onSelect.mockClear();
+		const voteSlot = votekickButton('Ben')?.closest('.vote-slot') as HTMLElement;
+		await fireEvent.click(voteSlot);
+		expect(onVotekick).not.toHaveBeenCalled();
+		expect(onSelect).not.toHaveBeenCalled();
+	});
+
+	it('marks exactly the selected row and moves it on rerender', async () => {
+		const { rerender } = render(PlayersList, focusProps(null));
+		expect(selectedNames()).toEqual([]);
+
+		await rerender(focusProps(0));
+		expect(selectedNames()).toEqual(['Anna']);
+
+		await rerender(focusProps(1));
+		expect(selectedNames()).toEqual(['Ben']);
+
+		await rerender(focusProps(null));
+		expect(selectedNames()).toEqual([]);
+	});
+
+	it('exposes aria-pressed and updates it with the selection', async () => {
+		const { rerender } = render(PlayersList, focusProps(null));
+		expect(nameButton('Anna')).toHaveAttribute('aria-pressed', 'false');
+		expect(nameButton('Ben')).toHaveAttribute('aria-pressed', 'false');
+
+		await rerender(focusProps(0));
+		expect(nameButton('Anna')).toHaveAttribute('aria-pressed', 'true');
+		expect(nameButton('Ben')).toHaveAttribute('aria-pressed', 'false');
+		expect(nameButton('Carla')).toHaveAttribute('aria-pressed', 'false');
+
+		await rerender(focusProps(1));
+		expect(nameButton('Anna')).toHaveAttribute('aria-pressed', 'false');
+		expect(nameButton('Ben')).toHaveAttribute('aria-pressed', 'true');
+	});
+
+	it('does not toggle focus when the votekick button is clicked', async () => {
+		const onSelect = vi.fn();
+		const onVotekick = vi.fn();
+		render(PlayersList, { ...focusProps(null, onSelect), onVotekick });
+
+		await fireEvent.click(votekickButton('Ben') as HTMLElement);
+
+		expect(onVotekick).toHaveBeenCalledWith('ben');
+		expect(onSelect).not.toHaveBeenCalled();
+		expect(document.querySelectorAll('.player.selected')).toHaveLength(0);
+	});
+
+	it('keeps badges out of the name button and the votekick label intact', () => {
+		const state = game();
+		state.players[0].autopilot = { active: true };
+		render(PlayersList, { game: state, me: me(), kickVotes: [], selectedSeat: 0 });
+
+		const button = nameButton('Anna');
+		expect(button).toHaveTextContent('Anna');
+		expect(button.querySelector('.badge')).toBeNull();
+		const row = button.closest('li') as HTMLElement;
+		expect(within(row).getByText('Du')).toBeInTheDocument();
+		expect(within(row).getByText('Autopilot')).toBeInTheDocument();
+		expect(votekickButton('Ben')).toHaveAttribute('aria-label', 'Votekick gegen Ben');
+	});
+
+	it('describes net worth and owned-field count with correct pluralisation', () => {
+		const state = game();
+		state.players[0].netWorth = 3000;
+		state.tiles = [
+			{ owner: 0, houses: 0, mortgaged: false },
+			{ owner: 0, houses: 0, mortgaged: false },
+			{ owner: 1, houses: 0, mortgaged: false }
+		];
+		render(PlayersList, { game: state, me: me() });
+
+		const annaRow = screen.getByText('Anna').closest('li') as HTMLElement;
+		const tip = moneyTip(annaRow, `NAV: ${formatMoney(3000)}`);
+		expect(tip).toBeInTheDocument();
+		expect(within(tip).getByText('2 Felder')).toBeInTheDocument();
+		expect(nameButton('Anna')).toHaveAttribute('aria-describedby', tip.id);
+
+		const benRow = screen.getByText('Ben').closest('li') as HTMLElement;
+		moneyTip(benRow, `NAV: ${formatMoney(1500)}`);
+		expect(within(benRow).getByText('1 Feld')).toBeInTheDocument();
+
+		const carlaRow = screen.getByText('Carla').closest('li') as HTMLElement;
+		expect(within(carlaRow).getByText('0 Felder')).toBeInTheDocument();
+	});
+
+	it('reveals the tooltip only on fine pointers', () => {
+		expect(PlayersListSource).toContain('@media (hover: hover) and (pointer: fine)');
+		expect(PlayersListSource).toMatch(/\.tip\s*\{[^}]*display: none/);
+		expect(PlayersListSource).toContain('.player:hover .tip');
+		expect(PlayersListSource).toContain('.name:focus-visible + .tip');
 	});
 });

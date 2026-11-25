@@ -51,6 +51,25 @@
 
 	// The estate card keeps its own state; only the user toggles it.
 	let estateOpen = $state(preferences.current.estatePanelOpen);
+	// View-only board focus, toggled by the player-name buttons. Never persisted.
+	let selectedSeat = $state<number | null>(null);
+
+	// Drop a focus once its seat is gone from the snapshot. Reading selectedSeat
+	// re-runs this when a new selection is made; the write does not loop.
+	$effect(() => {
+		const seat = selectedSeat;
+		const players = game?.players;
+		if (seat !== null && players && !players.some((player) => player.seat === seat)) {
+			selectedSeat = null;
+		}
+	});
+
+	// SvelteKit reuses this component across room codes; a seat index from the
+	// old room must not stay focused in the new one.
+	$effect(() => {
+		code;
+		selectedSeat = null;
+	});
 
 	$effect(() => {
 		const open = estateOpen;
@@ -190,7 +209,7 @@
 	{:else if game}
 		<div class="game" style="zoom: {preferences.current.zoom};">
 			<main class="board-area">
-				<Board {game} {isMyTurn} {isDebtor} {debtor} {me} onIntent={send} />
+				<Board {game} {isMyTurn} {isDebtor} {debtor} {me} {selectedSeat} onIntent={send} />
 			</main>
 			<aside class="side">
 				<section class="card">
@@ -201,8 +220,10 @@
 					<PlayersList
 						{game}
 						{me}
+						{selectedSeat}
 						kickVotes={room.kickVotes}
 						onVotekick={(userId) => send({ type: 'votekick', targetId: userId })}
+						onSelect={(seat) => (selectedSeat = selectedSeat === seat ? null : seat)}
 					/>
 				</section>
 
