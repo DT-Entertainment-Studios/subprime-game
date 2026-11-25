@@ -1383,16 +1383,17 @@ func TestAuction120PercentDebt(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			g, clock := newTestGame(t, 3)
 			g.Players[1].Cash = 178
-			g.Tiles[3].Owner = 1 // completes the brown group with tile 1
-			if tc.cushion {
-				g.Tiles[39].Owner = 1
-			}
+			g.Tiles[3].Owner = 1  // completes the brown group with tile 1
+			g.Tiles[39].Owner = 1 // cushion: makes the 220 bid legal under the 120% check
 			g.offerPurchase(0, 1)
 			if err := g.Decline(0); err != nil {
 				t.Fatalf("Decline() error = %v", err)
 			}
 			if err := g.Bid(1, 220); err != nil {
 				t.Fatalf("Bid(220) error = %v", err)
+			}
+			if !tc.cushion {
+				g.Tiles[39].Owner = Bank // drop the cushion so the debt is uncoverable at resolution
 			}
 			clock.Advance(16 * time.Second)
 			g.Tick(clock.Now())
@@ -1434,6 +1435,70 @@ func TestAuction120PercentDebt(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestBidCompletingGroupUsesEffectivePrice(t *testing.T) {
+	newCompletingAuction := func(t *testing.T) *Game {
+		t.Helper()
+		g, _ := newTestGame(t, 2)
+		g.Tiles[3].Owner = 1 // tile 3 (brown) plus tile 1 completes the group
+		g.offerPurchase(0, 1)
+		if err := g.Decline(0); err != nil {
+			t.Fatalf("Decline() error = %v", err)
+		}
+		return g
+	}
+
+	t.Run("AC1 completing bid below effective price is rejected", func(t *testing.T) {
+		g := newCompletingAuction(t)
+		g.Players[1].Cash = 77 // liquidation 77+42 = 119 < 120 = 100*120/100
+		if err := g.Bid(1, 100); err == nil {
+			t.Error("Bid(100) = nil, want insufficient_cash (120% price)")
+		} else if re, ok := err.(*RuleError); !ok || re.Code != "insufficient_cash" {
+			t.Errorf("Bid(100) error = %v (%T), want insufficient_cash", err, err)
+		}
+		if g.Auction.Bidder != Bank || g.Auction.Bid != 0 || len(g.Auction.History) != 0 {
+			t.Errorf("auction = %+v, want no bid recorded", g.Auction)
+		}
+	})
+
+	t.Run("AC2 completing bid at effective price is accepted", func(t *testing.T) {
+		g := newCompletingAuction(t)
+		g.Players[1].Cash = 78 // liquidation 78+42 = 120 == 100*120/100
+		if err := g.Bid(1, 100); err != nil {
+			t.Fatalf("Bid(100) error = %v, want nil", err)
+		}
+		if g.Auction.Bidder != 1 || g.Auction.Bid != 100 {
+			t.Errorf("auction = %+v, want bidder 1 at 100", g.Auction)
+		}
+	})
+
+	t.Run("AC3 non-completing bid only needs the raw bid", func(t *testing.T) {
+		g, _ := newTestGame(t, 2)
+		g.Players[1].Cash = 100 // no tiles, so tile 1 does not complete a group
+		g.offerPurchase(0, 1)
+		if err := g.Decline(0); err != nil {
+			t.Fatalf("Decline() error = %v", err)
+		}
+		if err := g.Bid(1, 100); err != nil {
+			t.Fatalf("Bid(100) at liquidation value error = %v", err)
+		}
+		if g.Auction.Bidder != 1 || g.Auction.Bid != 100 {
+			t.Errorf("auction = %+v, want bidder 1 at 100", g.Auction)
+		}
+
+		g2, _ := newTestGame(t, 2)
+		g2.Players[1].Cash = 99
+		g2.offerPurchase(0, 1)
+		if err := g2.Decline(0); err != nil {
+			t.Fatalf("Decline() error = %v", err)
+		}
+		if err := g2.Bid(1, 100); err == nil {
+			t.Error("Bid(100) with cash 99 = nil, want insufficient_cash")
+		} else if re, ok := err.(*RuleError); !ok || re.Code != "insufficient_cash" {
+			t.Errorf("Bid(100) error = %v (%T), want insufficient_cash", err, err)
+		}
+	})
 }
 
 func TestAuctionDebtHoldsWonTileUntilPaid(t *testing.T) {

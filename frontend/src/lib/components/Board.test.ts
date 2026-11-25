@@ -90,6 +90,22 @@ function auctionGame(liquidationValue: number, cash = 20): GameState {
 	return state;
 }
 
+/**
+ * The `board()` fixture puts every buyable tile in group 'braun', so the tile
+ * at index 1 only counts as "completing" once all other 35 braun tiles are
+ * owned by seat 0. Own those here, leaving the auction tile itself with the
+ * bank, so `completesGroup` becomes true like the backend's wouldCompleteGroup.
+ */
+function completingAuctionGame(liquidationValue: number, cash = 20): GameState {
+	const state = auctionGame(liquidationValue, cash);
+	for (const tile of state.board) {
+		if (tile.index !== state.auction!.tile && tile.group === 'braun') {
+			state.tiles[tile.index].owner = 0;
+		}
+	}
+	return state;
+}
+
 /** Two seats, one of them in debt; `debtorSeat` selects who owes. */
 function debtGame(debtorSeat: number): GameState {
 	const state = game();
@@ -229,6 +245,108 @@ describe('Board', () => {
 		expect(plus).toBeEnabled();
 		await fireEvent.click(plus); // bid 40, liquidation value exhausted
 		expect(plus).toBeDisabled();
+		expect(screen.queryByText(/vervollständigt deine Farbgruppe/)).toBeNull();
+	});
+
+	it('caps a group-completing bid at the affordable 120 % price (120 GE -> 100 GE)', async () => {
+		const state = completingAuctionGame(120);
+		const onIntent = vi.fn();
+		render(Board, {
+			game: state,
+			isMyTurn: false,
+			isDebtor: false,
+			me: state.players[0],
+			onIntent
+		});
+
+		const plus = screen.getByRole('button', { name: 'Gebot um 20 erhöhen' });
+		const submit = screen.getByRole('button', { name: 'Bieten' });
+		for (let step = 0; step < 4; step++) await fireEvent.click(plus); // 20 -> 40 -> 60 -> 80 -> 100
+
+		expect(screen.getByText('100 GE')).toBeInTheDocument();
+		expect(plus).toBeDisabled(); // a 120 GE bid would cost 144 GE
+		expect(submit).toBeEnabled();
+		expect(screen.getByText(/vervollständigt deine Farbgruppe/)).toBeInTheDocument();
+
+		await fireEvent.click(submit);
+		expect(onIntent).toHaveBeenCalledWith({ type: 'bid', amount: 100 });
+	});
+
+	it('caps a group-completing bid at 80 GE when liquidation is 119 GE', async () => {
+		const state = completingAuctionGame(119);
+		render(Board, {
+			game: state,
+			isMyTurn: false,
+			isDebtor: false,
+			me: state.players[0],
+			onIntent: () => {}
+		});
+
+		const plus = screen.getByRole('button', { name: 'Gebot um 20 erhöhen' });
+		for (let step = 0; step < 3; step++) await fireEvent.click(plus); // 20 -> 40 -> 60 -> 80
+
+		expect(screen.getByText('80 GE')).toBeInTheDocument();
+		expect(plus).toBeDisabled(); // cannot reach 100 GE
+	});
+
+	it('hides bid controls when a group-completing bid cannot cover the minimum', () => {
+		const state = completingAuctionGame(20); // maxBid floor(20/24)*20 = 0
+		render(Board, {
+			game: state,
+			isMyTurn: false,
+			isDebtor: false,
+			me: state.players[0],
+			onIntent: () => {}
+		});
+
+		expect(screen.queryByRole('button', { name: 'Bieten' })).toBeNull();
+		expect(screen.getByText('Du kannst gerade nicht bieten.')).toBeInTheDocument();
+	});
+
+	it('hides bid controls when a raised current bid exceeds the group-completing cap', () => {
+		const state = completingAuctionGame(120); // maxBid 100
+		state.auction!.bid = 100; // bidStep = 120 > maxBid
+		state.auction!.bidder = 1; // a different seat so the bidder guard does not trigger
+		render(Board, {
+			game: state,
+			isMyTurn: false,
+			isDebtor: false,
+			me: state.players[0],
+			onIntent: () => {}
+		});
+
+		expect(screen.queryByRole('button', { name: 'Bieten' })).toBeNull();
+		expect(screen.getByText('Du kannst gerade nicht bieten.')).toBeInTheDocument();
+	});
+
+	it('disables Bieten with no intent when the selected bid exceeds a shrunken cap', async () => {
+		const first = completingAuctionGame(200); // maxBid 160
+		const onIntent = vi.fn();
+		const { rerender } = render(Board, {
+			game: first,
+			isMyTurn: false,
+			isDebtor: false,
+			me: first.players[0],
+			onIntent
+		});
+
+		const plus = screen.getByRole('button', { name: 'Gebot um 20 erhöhen' });
+		for (let step = 0; step < 5; step++) await fireEvent.click(plus); // bidAmount = 120
+
+		// A fresh top-level game with a lower cap; bidAmount persists inside the component.
+		const second = completingAuctionGame(120); // maxBid 100
+		await rerender({
+			game: second,
+			isMyTurn: false,
+			isDebtor: false,
+			me: second.players[0],
+			onIntent
+		});
+
+		const submit = screen.getByRole('button', { name: 'Bieten' });
+		expect(submit).toBeDisabled();
+		await fireEvent.click(submit);
+		expect(onIntent).not.toHaveBeenCalled();
 	});
 
 	it('hides bid controls when the liquidation value is below the minimum bid', () => {

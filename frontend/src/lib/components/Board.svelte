@@ -51,13 +51,25 @@
 	const bidStep = $derived(game.auction && game.auction.bid > 0 ? game.auction.bid + 20 : game.auction?.minBid ?? 0);
 	/** The bid currently selected in the stepper; 0 means "use the minimum". */
 	const bidValue = $derived(bidAmount > bidStep ? bidAmount : bidStep);
+	const liquidation = $derived(me?.liquidationValue ?? me?.cash ?? 0);
+	/** Mirrors the backend's wouldCompleteGroup (street-only, all others owned by me). */
+	const completesGroup = $derived.by(() => {
+		if (!me || !auctionTile || auctionTile.type !== 'street' || !auctionTile.group) return false;
+		return game.board
+			.filter((tile) => tile.index !== auctionTile.index && tile.group === auctionTile.group)
+			.every((tile) => game.tiles[tile.index]?.owner === me.seat);
+	});
+	/** Largest 20-step bid whose price (120 % when completing) is affordable. */
+	const maxBid = $derived(
+		completesGroup ? Math.floor(liquidation / 24) * 20 : Math.floor(liquidation / 20) * 20
+	);
 	const canBid = $derived(
 		game.auction !== undefined &&
 			me !== null &&
 			!me.bankrupt &&
 			game.turnPhase !== 'awaiting_debt' &&
 			game.auction.bidder !== me.seat &&
-			(me.liquidationValue ?? me.cash) >= bidStep
+			maxBid >= bidStep
 	);
 	const debtAmount = $derived(debtor && debtor.cash < 0 ? -debtor.cash : 0);
 	const pendingShortfall = $derived(
@@ -79,6 +91,7 @@
 	});
 
 	function placeBid() {
+		if (bidValue > maxBid) return;
 		onIntent({ type: 'bid', amount: bidValue });
 		bidAmount = 0;
 	}
@@ -211,17 +224,24 @@
 									class="step"
 									type="button"
 									aria-label="Gebot um 20 erhöhen"
-									disabled={me !== null && bidValue + 20 > (me.liquidationValue ?? me.cash)}
+									disabled={bidValue + 20 > maxBid}
 									onclick={() => (bidAmount = bidValue + 20)}
 								>
 									+20
 								</button>
 							</div>
-							<button class="cta bid-submit" type="button" onclick={placeBid}>Bieten</button>
+							<button class="cta bid-submit" type="button" disabled={bidValue > maxBid} onclick={placeBid}>
+								Bieten
+							</button>
 						</div>
 						<p class="muted">
 							Gebote dürfen über dein Bargeld hinausgehen: Verkauf und Hypotheken zählen mit.
 						</p>
+						{#if completesGroup}
+							<p class="muted">
+								Diese Auktion vervollständigt deine Farbgruppe: Der Preis beträgt 120 % des Gebots.
+							</p>
+						{/if}
 					{:else}
 						<p class="muted">Du kannst gerade nicht bieten.</p>
 					{/if}
