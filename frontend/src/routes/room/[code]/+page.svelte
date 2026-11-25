@@ -292,19 +292,18 @@
 	.game {
 		display: grid;
 		grid-template-columns: minmax(0, 1fr) minmax(300px, 380px);
-		gap: 0.75rem;
-		padding: 0.75rem 1rem 1rem;
+		gap: 0.5rem;
+		padding: 0.75rem 0.5rem 1rem;
 		align-items: start;
 		/* Keep the board and the side panel next to each other instead of
 		   leaving a gap between them on wide screens. */
-		max-width: calc(min(calc(100vh - 5.5rem), 1320px) + 380px + 0.75rem + 2rem);
+		max-width: calc(min(calc(100vh - 5.5rem), 1320px) + 380px + 0.5rem + 1rem);
 		width: 100%;
 		margin: 0 auto;
 	}
 
 	.board-area {
 		min-width: 0;
-		overflow: auto;
 	}
 
 	.side {
@@ -337,7 +336,7 @@
 	@media (max-width: 1100px) {
 		.game {
 			grid-template-columns: minmax(0, 1fr);
-			max-width: calc(min(calc(100vh - 5.5rem), 1320px) + 2rem);
+			max-width: calc(min(calc(100vh - 5.5rem), 1320px) + 1rem);
 		}
 	}
 </style>

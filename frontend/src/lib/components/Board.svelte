@@ -330,10 +330,9 @@
 		gap: 2px;
 		aspect-ratio: 1;
 		width: 100%;
-		min-width: 560px;
 		max-width: min(calc(100vh - 5.5rem), 1320px);
 		margin: 0 auto;
-		padding: 6px;
+		padding: 4px;
 		background: var(--md-sys-color-surface-container-low);
 		border: 1px solid var(--md-sys-color-outline-variant);
 		border-radius: var(--md-sys-shape-corner-large);
@@ -566,5 +565,59 @@
 
 	.waiting {
 		margin: 0;
+	}
+
+	@container (max-width: 560px) {
+		.panel {
+			gap: 0.4rem;
+			padding: 0.5rem 0.75rem;
+		}
+		.turn { gap: 0.35rem; }
+		.dice { gap: 0.35rem; }
+		.die { width: 2.4rem; height: 2.4rem; font-size: 1.1rem; }
+		.decision { padding: 0.4rem 0.6rem; }
+		.decision p { margin-bottom: 0.2rem; }
+		.bid-controls { gap: 0.35rem; }
+		.stepper {
+			grid-template-columns: auto minmax(0, 1fr) auto;
+			gap: 0.25rem;
+		}
+		.step {
+			min-width: 2.75rem;
+			min-height: 2.75rem;
+			padding: 0 0.35rem;
+			font-size: 1rem;
+		}
+		.bid-amount {
+			min-width: 0; /* let the middle stepper track actually shrink */
+			padding: 0.15rem 0.4rem;
+		}
+		.bid-amount .label { font-size: 0.65rem; }
+		.bid-amount strong { font-size: 1rem; }
+		.bid-submit {
+			min-height: 2.75rem;
+			padding-inline: 0.75rem;
+		}
+		.debt-actions {
+			grid-template-columns: minmax(0, 1fr);
+			justify-content: stretch;
+			gap: 0.35rem;
+		}
+		.debt-actions .toggle { grid-area: 1 / 1; }
+		.debt-actions .confirm { grid-area: 2 / 1; }
+	}
+
+	@container (max-width: 380px) {
+		.center { padding: calc(var(--rw) + 0.25rem); }
+		.panel {
+			gap: 0.3rem;
+			padding: 0.35rem 0.5rem;
+		}
+		.decision { padding: 0.3rem 0.45rem; }
+		.decision p { margin-bottom: 0.15rem; }
+		.bid-amount { padding: 0.1rem 0.3rem; }
+		.bid-amount .label { font-size: 0.6rem; }
+		.step { padding: 0 0.25rem; }
+		.bid-submit { padding-inline: 0.5rem; }
 	}
 </style>
